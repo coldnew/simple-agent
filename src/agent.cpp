@@ -68,9 +68,8 @@ Json Agent::SendRequest(const Json& payload) {
 
 std::string Agent::Run(const std::string& query,
                        const std::string& system_prompt) {
-  messages_.clear();
-
-  if (!system_prompt.empty()) {
+  // system prompt only added for the first message, if messages_ is empty
+  if (!system_prompt.empty() && messages_.empty()) {
     Message sys_msg;
     sys_msg.role = Role::kSystem;
     sys_msg.content_type = ContentType::kText;
@@ -117,6 +116,14 @@ std::string Agent::Run(const std::string& query,
   } else {
     return "Error: Invalid response format: " + response.dump();
   }
+
+  // update messages with assistant response so that the next query
+  // will have the full conversation history
+  Message assistant_msg;
+  assistant_msg.role = Role::kAssistant;
+  assistant_msg.content_type = ContentType::kText;
+  assistant_msg.text = content;
+  messages_.push_back(assistant_msg);
 
   return content;
 }
