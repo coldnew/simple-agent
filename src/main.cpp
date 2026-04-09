@@ -20,7 +20,9 @@ int main() {
   key = api_key;
   model_name = model;
 
-  Agent agent(url, key, model_name);
+  std::string system_prompt = R"(You are a helpful assistant who named AI.)";
+
+  Agent agent(url, key, model_name, system_prompt);
 
   std::cout << "Simple Agent - Enter your query (or 'quit' to exit):"
             << std::endl;
