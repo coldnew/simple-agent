@@ -95,27 +95,11 @@ std::string Agent::Run(const std::string& query,
 
   const Json response = SendRequest(payload);
 
-  if (response.contains("error")) {
-    return "Error: " + response["error"].dump();
-  }
+#ifdef DEBUG
+  std::cerr << "Response: " << response.dump() << std::endl;
+#endif
 
-  std::string content;
-  if (response.contains("choices") && !response["choices"].empty()) {
-    const auto& msg = response["choices"][0]["message"];
-    if (msg.contains("content") && msg["content"].is_string()) {
-      content = msg["content"].get<std::string>();
-    } else {
-      return "Error: Response content is not a string";
-    }
-  } else if (response.contains("content")) {
-    if (response["content"].is_string()) {
-      content = response["content"].get<std::string>();
-    } else {
-      return "Error: Unexpected content format";
-    }
-  } else {
-    return "Error: Invalid response format: " + response.dump();
-  }
+  const std::string content = GetResponseContent(response);
 
   // update messages with assistant response so that the next query
   // will have the full conversation history
@@ -126,4 +110,80 @@ std::string Agent::Run(const std::string& query,
   messages_.push_back(assistant_msg);
 
   return content;
+}
+
+// A sample response from the API might look like this:
+//
+// {
+//   "choices": [
+//     {
+//       "finish_reason": "stop",
+//       "index": 0,
+//       "logprobs": null,
+//       "message": {
+//         "content": "Hi there! How can I help you today?",
+//         "reasoning": "The user has simply said \"hi\" - this is a greeting. I
+//         should respond in a friendly, welcoming manner and offer to help them
+//         with whatever they need.\n", "reasoning_details": [
+//           {
+//             "format": "unknown",
+//             "index": 0,
+//             "text": "The user has simply said \"hi\" - this is a greeting. I
+//             should respond in a friendly, welcoming manner and offer to help
+//             them with whatever they need.\n", "type": "reasoning.text"
+//           }
+//         ],
+//         "refusal": null,
+//         "role": "assistant"
+//       },
+//       "native_finish_reason": "stop"
+//     }
+//   ],
+//   "created": 1775715588,
+//   "id": "gen-1775715587-F2085HsLqclblKPhRFy0",
+//   "model": "minimax/minimax-m2.5-20260211:free",
+//   "object": "chat.completion",
+//   "provider": "OpenInference",
+//   "system_fingerprint": null,
+//   "usage": {
+//     "completion_tokens": 48,
+//     "completion_tokens_details": {
+//       "audio_tokens": 0,
+//       "image_tokens": 0,
+//       "reasoning_tokens": 38
+//     },
+//     "cost": 0,
+//     "cost_details": {
+//       "upstream_inference_completions_cost": 0,
+//       "upstream_inference_cost": 0,
+//       "upstream_inference_prompt_cost": 0
+//     },
+//     "is_byok": false,
+//     "prompt_tokens": 39,
+//     "prompt_tokens_details": {
+//       "audio_tokens": 0,
+//       "cache_write_tokens": 0,
+//       "cached_tokens": 0,
+//       "video_tokens": 0
+//     },
+//     "total_tokens": 87
+//   }
+// }
+//
+std::string Agent::GetResponseContent(const Json& response) {
+  if (response.contains("error")) {
+    return "Error: " + response["error"].dump();
+  }
+
+  if (!response.contains("choices") || !response["choices"].is_array() ||
+      response["choices"].empty()) {
+    return "Error: Invalid response format: " + response.dump();
+  }
+
+  const auto& msg = response["choices"][0]["message"];
+  if (!msg.contains("content") || !msg["content"].is_string()) {
+    return "Error: Response content is not a string";
+  }
+
+  return msg["content"].get<std::string>();
 }

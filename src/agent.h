@@ -26,6 +26,7 @@ class Agent {
                               size_t size,
                               size_t nmemb,
                               void* userp);
+  std::string GetResponseContent(const Json& response);
 
   std::string api_url_;
   std::string api_key_;
