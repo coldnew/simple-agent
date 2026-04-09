@@ -1,7 +1,7 @@
-#include "../tools.h"
-
 #include <fstream>
 #include <sstream>
+
+#include "../tools.h"
 
 namespace {
 
@@ -47,14 +47,6 @@ class ReadFileTool : public Tool {
          {{"path", {{"type", "string"}, {"description", "File path"}}}}},
         {"required", Json::array({"path"})},
         {"additionalProperties", false}};
-    handler = [this](const Json& arguments,
-                     std::string* error) -> std::optional<ToolMessage> {
-      const std::string content = Execute(arguments, error);
-      if (!error->empty()) {
-        return std::nullopt;
-      }
-      return ToolMessage("", name, content);
-    };
   }
 
   std::string Execute(const Json& arguments, std::string* error) override {

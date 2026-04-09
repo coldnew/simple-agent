@@ -7,6 +7,7 @@
 #include <string>
 
 #include "message.cpp"
+#include "tool/read_file.cpp"
 
 namespace {
 

@@ -1,7 +1,6 @@
 #ifndef TOOLS_H_
 #define TOOLS_H_
 
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -14,9 +13,6 @@ class Tool {
   std::string name;
   std::string description;
   Json parameters;
-  std::function<std::optional<ToolMessage>(const Json& arguments,
-                                           std::string* error)>
-      handler;
 
   virtual std::string Execute(const Json& arguments, std::string* error) = 0;
 };

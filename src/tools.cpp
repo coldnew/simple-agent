@@ -75,10 +75,15 @@ Json ToolManager::BuildToolsSchema() const {
 std::optional<ToolMessage> ToolManager::Execute(const std::string& name,
                                                 const Json& arguments,
                                                 std::string* error) const {
+  error->clear();
   auto it = tools_.find(name);
   if (it == tools_.end()) {
     *error = "Unknown tool: " + name;
     return std::nullopt;
   }
-  return it->second->handler(arguments, error);
+  const std::string content = it->second->Execute(arguments, error);
+  if (!error->empty()) {
+    return std::nullopt;
+  }
+  return ToolMessage("", it->second->name, content);
 }

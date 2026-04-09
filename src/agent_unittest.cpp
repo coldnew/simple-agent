@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "message.cpp"
+#include "tool/read_file.cpp"
 #include "tools.cpp"
 
 struct AgentTest : testing::Test {
