@@ -5,7 +5,7 @@
 
 namespace {
 
-std::string ReadFile(const Json& arguments, std::string* error) {
+std::string ReadFileContent(const Json& arguments, std::string* error) {
   error->clear();
   if (!arguments.is_object()) {
     *error = "read_file arguments must be an object";
@@ -32,30 +32,44 @@ std::string ReadFile(const Json& arguments, std::string* error) {
     content.resize(kMaxBytes);
     content += "\n\n[truncated to 64KB]";
   }
+
   return content;
 }
 
 }  // namespace
 
-Json BuildToolsSchema() {
-  Json tools = Json::array();
-  tools.push_back({
-      {"type", "function"},
-      {"function",
-       {{"name", "read_file"},
-        {"description", "Read a UTF-8 text file from local path"},
-        {"parameters",
-         {{"type", "object"},
-          {"properties",
-           {{"path", {{"type", "string"}, {"description", "File path"}}}}},
-          {"required", Json::array({"path"})},
-          {"additionalProperties", false}}}}},
-  });
-  return tools;
+class ReadFileTool : public Tool {
+ public:
+  ReadFileTool() {
+    name = "read_file";
+    description = "Read a UTF-8 text file from local path";
+    parameters = {
+        {"type", "object"},
+        {"properties",
+         {{"path", {{"type", "string"}, {"description", "File path"}}}}},
+        {"required", Json::array({"path"})},
+        {"additionalProperties", false}};
+    handler = [this](const Json& arguments,
+                     std::string* error) -> std::optional<ToolMessage> {
+      const std::string content = Execute(arguments, error);
+      if (!error->empty()) {
+        return std::nullopt;
+      }
+      return ToolMessage("", name, content);
+    };
+  }
+
+  std::string Execute(const Json& arguments, std::string* error) override {
+    return ReadFileContent(arguments, error);
+  }
+};
+
+ToolManager::ToolManager() {
+  Register(std::make_unique<ReadFileTool>());
 }
 
-std::optional<ToolMessage> ExecuteToolCall(const Json& tool_call,
-                                           std::string* error) {
+std::optional<ToolMessage> ToolManager::Execute(const Json& tool_call,
+                                                std::string* error) const {
   error->clear();
   if (!tool_call.is_object()) {
     *error = "Invalid tool_call payload: " + tool_call.dump();
@@ -94,17 +108,39 @@ std::optional<ToolMessage> ExecuteToolCall(const Json& tool_call,
     }
   }
 
-  std::string output;
-  if (name == "read_file") {
-    output = ReadFile(arguments, error);
-  } else {
+  auto result = Execute(name, arguments, error);
+  if (!result) {
+    return std::nullopt;
+  }
+
+  return ToolMessage(tool_call["id"].get<std::string>(), name, result->Text());
+}
+
+void ToolManager::Register(std::unique_ptr<Tool> tool) {
+  tools_[tool->name] = std::move(tool);
+}
+
+Json ToolManager::BuildToolsSchema() const {
+  Json tools = Json::array();
+  for (const auto& [name, tool] : tools_) {
+    tools.push_back({
+        {"type", "function"},
+        {"function",
+         {{"name", tool->name},
+          {"description", tool->description},
+          {"parameters", tool->parameters}}},
+    });
+  }
+  return tools;
+}
+
+std::optional<ToolMessage> ToolManager::Execute(const std::string& name,
+                                                const Json& arguments,
+                                                std::string* error) const {
+  auto it = tools_.find(name);
+  if (it == tools_.end()) {
     *error = "Unknown tool: " + name;
     return std::nullopt;
   }
-
-  if (!error->empty()) {
-    return std::nullopt;
-  }
-
-  return ToolMessage(tool_call["id"].get<std::string>(), name, output);
+  return it->second->handler(arguments, error);
 }

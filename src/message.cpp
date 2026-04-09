@@ -79,6 +79,10 @@ ToolMessage::ToolMessage(std::string tool_call_id,
       name_(std::move(name)),
       text_(std::move(text)) {}
 
+const std::string& ToolMessage::Text() const {
+  return text_;
+}
+
 Json ToolMessage::ToJson() const {
   Json j;
   j["role"] = RoleToString(Role::kTool);

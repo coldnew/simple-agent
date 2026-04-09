@@ -68,6 +68,7 @@ class AssistantMessage : public IMessage {
 class ToolMessage : public IMessage {
  public:
   ToolMessage(std::string tool_call_id, std::string name, std::string text);
+  const std::string& Text() const;
   Json ToJson() const override;
 
  private:

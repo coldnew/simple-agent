@@ -92,11 +92,12 @@ std::string Agent::Run(const std::string& query) {
   // A single user turn may include multiple model requests when tool calls
   // are returned. Keep the chain bounded to avoid infinite loops.
   const int kMaxToolRounds = 8;
+  ToolManager tool_manager;
   for (int round = 0; round < kMaxToolRounds; ++round) {
     Json payload;
     payload["model"] = model_;
     payload["max_tokens"] = 1024;
-    payload["tools"] = BuildToolsSchema();
+    payload["tools"] = tool_manager.BuildToolsSchema();
     payload["tool_choice"] = "auto";
 
     payload["messages"] = messages_;
@@ -121,7 +122,7 @@ std::string Agent::Run(const std::string& query) {
 
     for (const auto& tool_call : assistant_msg->ToolCalls()) {
       const std::optional<ToolMessage> tool_msg =
-          ExecuteToolCall(tool_call, &error);
+          tool_manager.Execute(tool_call, &error);
       if (!tool_msg.has_value()) {
         return "Error: " + error;
       }

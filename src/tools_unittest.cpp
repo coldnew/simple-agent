@@ -28,10 +28,12 @@ std::filesystem::path TempPath(const std::string& filename) {
 
 }  // namespace
 
-struct ToolsSchemaTest : testing::Test {};
+struct ToolsSchemaTest : testing::Test {
+  ToolManager tool_manager;
+};
 
 TEST_F(ToolsSchemaTest, ContainsReadFileSchema) {
-  const Json schema = BuildToolsSchema();
+  const Json schema = tool_manager.BuildToolsSchema();
 
   ASSERT_TRUE(schema.is_array());
   ASSERT_EQ(schema.size(), 1);
@@ -40,11 +42,13 @@ TEST_F(ToolsSchemaTest, ContainsReadFileSchema) {
   EXPECT_EQ(schema[0]["function"]["parameters"]["type"], "object");
 }
 
-struct ExecuteToolCallTest : testing::Test {};
+struct ExecuteToolCallTest : testing::Test {
+  ToolManager tool_manager;
+};
 
 TEST_F(ExecuteToolCallTest, RejectsNonObjectPayload) {
   std::string error;
-  const auto result = ExecuteToolCall(Json("bad"), &error);
+  const auto result = tool_manager.Execute(Json("bad"), &error);
 
   EXPECT_FALSE(result.has_value());
   EXPECT_NE(error.find("Invalid tool_call payload"), std::string::npos);
@@ -55,7 +59,7 @@ TEST_F(ExecuteToolCallTest, RejectsMissingId) {
   Json tool_call = Json::object();
   tool_call["function"] = Json::object({{"name", "read_file"}});
 
-  const auto result = ExecuteToolCall(tool_call, &error);
+  const auto result = tool_manager.Execute(tool_call, &error);
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(error, "tool_call missing id");
 }
@@ -67,7 +71,7 @@ TEST_F(ExecuteToolCallTest, RejectsInvalidArgumentsJsonString) {
   tool_call["function"] = Json::object(
       {{"name", "read_file"}, {"arguments", "{this is not json}"}});
 
-  const auto result = ExecuteToolCall(tool_call, &error);
+  const auto result = tool_manager.Execute(tool_call, &error);
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(error, "tool_call.arguments is not valid JSON");
 }
@@ -77,7 +81,7 @@ TEST_F(ExecuteToolCallTest, RejectsUnknownToolName) {
   const Json tool_call =
       BuildToolCall("call_2", "unknown_tool", Json::object());
 
-  const auto result = ExecuteToolCall(tool_call, &error);
+  const auto result = tool_manager.Execute(tool_call, &error);
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(error, "Unknown tool: unknown_tool");
 }
@@ -86,7 +90,7 @@ TEST_F(ExecuteToolCallTest, RejectsReadFileWithoutPath) {
   std::string error;
   const Json tool_call = BuildToolCall("call_3", "read_file", Json::object());
 
-  const auto result = ExecuteToolCall(tool_call, &error);
+  const auto result = tool_manager.Execute(tool_call, &error);
   EXPECT_FALSE(result.has_value());
   EXPECT_EQ(error, "read_file requires string field: path");
 }
@@ -102,7 +106,7 @@ TEST_F(ExecuteToolCallTest, ReadFileReturnsContent) {
   const Json args = Json::object({{"path", path.string()}});
   const Json tool_call = BuildToolCall("call_4", "read_file", args);
 
-  const auto result = ExecuteToolCall(tool_call, &error);
+  const auto result = tool_manager.Execute(tool_call, &error);
   ASSERT_TRUE(result.has_value()) << error;
 
   const Json tool_json = result->ToJson();
@@ -125,7 +129,7 @@ TEST_F(ExecuteToolCallTest, ReadFileTruncatesLargeContent) {
   const Json args = Json::object({{"path", path.string()}});
   const Json tool_call = BuildToolCall("call_5", "read_file", args);
 
-  const auto result = ExecuteToolCall(tool_call, &error);
+  const auto result = tool_manager.Execute(tool_call, &error);
   ASSERT_TRUE(result.has_value()) << error;
 
   const std::string content = result->ToJson()["content"].get<std::string>();
