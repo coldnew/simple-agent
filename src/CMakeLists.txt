@@ -6,6 +6,7 @@ ADD_EXECUTABLE(simple_agent
     agent.cpp
     message.cpp
     tools.cpp
+    tool/read_file.cpp
 )
 
 TARGET_LINK_LIBRARIES(simple_agent PRIVATE
@@ -25,4 +26,3 @@ FOREACH(unittest ${unittests})
     nlohmann_json::nlohmann_json
   )
 ENDFOREACH()
-
