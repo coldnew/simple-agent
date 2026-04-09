@@ -10,10 +10,6 @@
 
 #include "message.h"
 
-#define DISALLOW_COPY_AND_ASSIGN(Type) \
-  Type(const Type&) = delete;          \
-  Type& operator=(const Type&) = delete;
-
 class Agent {
  public:
   Agent(const std::string& api_url,
@@ -35,8 +31,6 @@ class Agent {
   std::string api_key_;
   std::string model_;
   std::vector<Message> messages_;
-
-  DISALLOW_COPY_AND_ASSIGN(Agent);
 };
 
 #endif  // AGENT_H_
