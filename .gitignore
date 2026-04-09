@@ -1,0 +1,13 @@
+# Build
+build/
+cmake-build-*/
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Compile commands (generated)
+compile_commands.json
