@@ -14,13 +14,23 @@ enum class ContentType {
   kText,
 };
 
-struct Message {
+using Json = nlohmann::json;
+
+class IMessage {
+ public:
+  virtual ~IMessage() = default;
+  virtual Json ToJson() const = 0;
+};
+
+struct Message : public IMessage {
   Role role;
   ContentType content_type;
   std::string text;
 
   Message() : role(Role::kUser), content_type(ContentType::kText) {}
   explicit Message(Role r) : role(r), content_type(ContentType::kText) {}
+
+  Json ToJson() const override;
 };
 
 using Json = nlohmann::json;

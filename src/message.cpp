@@ -16,9 +16,12 @@ std::string RoleToString(Role r) {
 
 }  // namespace
 
-Json MessageToJson(const Message& msg) {
+Json Message::ToJson() const {
   Json j;
-  j["role"] = RoleToString(msg.role);
-  j["content"] = msg.text;
+  j["role"] = RoleToString(role);
+  j["content"] = text;
+  return j;
+}
+
   return j;
 }
