@@ -41,7 +41,20 @@ Json Agent::SendRequest(const Json& payload) {
   curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE,
                    static_cast<long>(request_body.size()));
 
-#ifdef DEBUG
+  // A simple request payload might look like this:
+  //
+  //  {
+  //  "max_tokens": 1024,
+  //  "messages": [
+  //    {
+  //      "content": "hi",
+  //      "role": "user"
+  //    }
+  //  ],
+  //  "model": "gemma4:e4b"
+  // }
+
+#if 0
   std::cerr << "Request: " << request_body << std::endl;
 #endif
 
@@ -95,7 +108,7 @@ std::string Agent::Run(const std::string& query,
 
   const Json response = SendRequest(payload);
 
-#ifdef DEBUG
+#if 0
   std::cerr << "Response: " << response.dump() << std::endl;
 #endif
 
