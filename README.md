@@ -8,6 +8,12 @@ A simple AI agent in c++
 - Chat history
 - OpenAI-compatible `tools` support with built-in `read_file`
 
+## Requirements
+
+To build this project, system MUST have following libraries:
+
+- libcurl
+
 ## Build
 
 ```bash
