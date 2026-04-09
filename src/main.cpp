@@ -30,7 +30,8 @@ int main() {
     std::string query;
     std::getline(std::cin, query);
 
-    if (query == "quit" || query == "exit") {
+    if (query == "quit" || query == "/quit" || query == "exit" ||
+        query == "/exit") {
       break;
     }
 
