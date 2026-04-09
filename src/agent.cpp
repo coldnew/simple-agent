@@ -2,25 +2,19 @@
 
 #include <iostream>
 
+#include "tools.h"
+
 Agent::Agent(const std::string& api_url,
              const std::string& api_key,
              const std::string& model,
              const std::string& system_prompt)
     : api_url_(api_url), api_key_(api_key), model_(model) {
   if (!system_prompt.empty()) {
-    AppendTextMessage(Role::kSystem, system_prompt);
+    messages_.push_back(SystemMessage(system_prompt).ToJson());
   }
 }
 
 Agent::~Agent() = default;
-
-void Agent::AppendTextMessage(Role role, const std::string& text) {
-  Message msg;
-  msg.role = role;
-  msg.content_type = ContentType::kText;
-  msg.text = text;
-  messages_.push_back(msg);
-}
 
 size_t Agent::WriteCallback(void* contents,
                             size_t size,
@@ -93,34 +87,52 @@ Json Agent::SendRequest(const Json& payload) {
 }
 
 std::string Agent::Run(const std::string& query) {
-  AppendTextMessage(Role::kUser, query);
+  messages_.push_back(UserMessage(query).ToJson());
 
-  Json payload;
-  payload["model"] = model_;
-  payload["max_tokens"] = 1024;
+  // A single user turn may include multiple model requests when tool calls
+  // are returned. Keep the chain bounded to avoid infinite loops.
+  const int kMaxToolRounds = 8;
+  for (int round = 0; round < kMaxToolRounds; ++round) {
+    Json payload;
+    payload["model"] = model_;
+    payload["max_tokens"] = 1024;
+    payload["tools"] = BuildToolsSchema();
+    payload["tool_choice"] = "auto";
 
-  Json msgs = Json::array();
-  for (const auto& msg : messages_) {
-    msgs.push_back(MessageToJson(msg));
-  }
-  payload["messages"] = msgs;
+    payload["messages"] = messages_;
 
-  const Json response = SendRequest(payload);
+    const Json response = SendRequest(payload);
 
 #if 0
-  std::cerr << "Response: " << response.dump() << std::endl;
+    std::cerr << "Response (" << round <<  "): " << response.dump() << std::endl;
 #endif
 
-  const std::string content = GetResponseContent(response);
+    std::string error;
+    const std::optional<AssistantMessage> assistant_msg =
+        GetAssistantMessage(response, &error);
+    if (!assistant_msg.has_value()) {
+      return "Error: " + error;
+    }
+    messages_.push_back(assistant_msg->ToJson());
 
-  // update messages with assistant response so that the next query
-  // will have the full conversation history
-  AppendTextMessage(Role::kAssistant, content);
+    if (!assistant_msg->HasToolCalls()) {
+      return assistant_msg->Text();
+    }
 
-  return content;
+    for (const auto& tool_call : assistant_msg->ToolCalls()) {
+      const std::optional<ToolMessage> tool_msg =
+          ExecuteToolCall(tool_call, &error);
+      if (!tool_msg.has_value()) {
+        return "Error: " + error;
+      }
+      messages_.push_back(tool_msg->ToJson());
+    }
+  }
+
+  return "Error: Reached max tool-call rounds";
 }
 
-// A sample response from the API might look like this:
+// A sample response from the API might look like this: (without tool calls)
 //
 // {
 //   "choices": [
@@ -178,20 +190,249 @@ std::string Agent::Run(const std::string& query) {
 //   }
 // }
 //
-std::string Agent::GetResponseContent(const Json& response) {
+
+// If we enable tool calls:
+
+// first we send a user message that includes a request to read a file:
+//
+// {
+//   "max_tokens": 1024,
+//   "messages": [
+//     {
+//       "content": "You are a helpful assistant who named AI.",
+//       "role": "system"
+//     },
+//     {
+//       "content": "read file README.md",
+//       "role": "user"
+//     }
+//   ],
+//   "model": "gemma4:e4b",
+//   "tool_choice": "auto",
+//   "tools": [
+//     {
+//       "function": {
+//         "description": "Read a UTF-8 text file from local path",
+//         "name": "read_file",
+//         "parameters": {
+//           "additionalProperties": false,
+//           "properties": {
+//             "path": {
+//               "description": "File path",
+//               "type": "string"
+//             }
+//           },
+//           "required": [
+//             "path"
+//           ],
+//           "type": "object"
+//         }
+//       },
+//       "type": "function"
+//     }
+//   ]
+// }
+//
+// round 1 response with tool call:
+//
+// {
+//   "choices": [
+//     {
+//       "finish_reason": "tool_calls",
+//       "index": 0,
+//       "message": {
+//         "content": "",
+//         "reasoning": "The user is asking to read the content of a file named
+//         \"README.md\". I should use the `read_file` tool for this task and
+//         pass \"README.md\" as the `path` argument.", "role": "assistant",
+//         "tool_calls": [
+//           {
+//             "function": {
+//               "arguments": "{\"path\":\"README.md\"}",
+//               "name": "read_file"
+//             },
+//             "id": "call_1qgf3dhs",
+//             "index": 0,
+//             "type": "function"
+//           }
+//         ]
+//       }
+//     }
+//   ],
+//   "created": 1775720012,
+//   "id": "chatcmpl-979",
+//   "model": "gemma4:e4b",
+//   "object": "chat.completion",
+//   "system_fingerprint": "fp_ollama",
+//   "usage": {
+//     "completion_tokens": 65,
+//     "prompt_tokens": 105,
+//     "total_tokens": 170
+//   }
+// }
+//
+//
+// we send the tool call to the `read_file` tool, which reads the
+// content of `README.md` and returns it as a string. The model then
+// generates a follow-up response that includes the content of the
+// file and an explanation of what it did. This is reflected in the
+// round 2 response below:
+//
+// {
+//   "max_tokens": 1024,
+//   "messages": [
+//     {
+//       "content": "You are a helpful assistant who named AI.",
+//       "role": "system"
+//     },
+//     {
+//       "content": "read file README.md",
+//       "role": "user"
+//     },
+//     {
+//       "content": null,
+//       "role": "assistant",
+//       "tool_calls": [
+//         {
+//           "function": {
+//             "arguments": "{\"path\":\"README.md\"}",
+//             "name": "read_file"
+//           },
+//           "id": "call_jeoq921j",
+//           "index": 0,
+//           "type": "function"
+//         }
+//       ]
+//     },
+//     {
+//       "content": "simple agent\n--------------\n\nA simple AI agent in
+//       c++\n\n## Features\n\n- Chat history\n- OpenAI-compatible `tools`
+//       support with built-in `read_file`\n\n## Build\n\n```bash\nmkdir -p
+//       build && cd $_\ncmake ..\nmake -j30\n```\n\n##
+//       Usage\n\n```bash\nAPI_KEY=\"$OPENROUTER_API_KEY\"
+//       API_URL=\"https://openrouter.ai/api/v1\" MODEL=\"openrouter/free\"
+//       ./build/src/simple_agent\n```\n\n### Ollama (OpenAI-compatible
+//       API)\n\n```bash\nAPI_KEY=\"ollama\"
+//       API_URL=\"http://localhost:11434/v1\" MODEL=\"gemma4:e4b\"
+//       ./build/src/simple_agent\n```\n\n### LM Studio (OpenAI-compatible
+//       API)\n\n```bash\nAPI_KEY=\"lmstudio\"
+//       API_URL=\"http://localhost:1234/v1\" MODEL=\"gemma4:e4b\"
+//       ./build/src/simple_agent\n```\n\n## clang-format\n\nTo run
+//       clang-format, use following command\n\n```bash\ncmake --build build/
+//       --target format\n```\n", "name": "read_file", "role": "tool",
+//       "tool_call_id": "call_jeoq921j"
+//     }
+//   ],
+//   "model": "gemma4:e4b",
+//   "tool_choice": "auto",
+//   "tools": [
+//     {
+//       "function": {
+//         "description": "Read a UTF-8 text file from local path",
+//         "name": "read_file",
+//         "parameters": {
+//           "additionalProperties": false,
+//           "properties": {
+//             "path": {
+//               "description": "File path",
+//               "type": "string"
+//             }
+//           },
+//           "required": [
+//             "path"
+//           ],
+//           "type": "object"
+//         }
+//       },
+//       "type": "function"
+//     }
+//   ]
+// }
+//
+// round 2 response with tool call execution:
+// {
+//   "choices": [
+//     {
+//       "finish_reason": "stop",
+//       "index": 0,
+//       "message": {
+//         "content": "Here is the content of the `README.md` file:\n\n***\n\n#
+//         simple agent\n--------------\n\nA simple AI agent in c++\n\n##
+//         Features\n\n- Chat history\n- OpenAI-compatible `tools` support with
+//         built-in `read_file`\n\n## Build\n\n```bash\nmkdir -p build && cd
+//         $_\ncmake ..\nmake -j30\n```\n\n## Usage\n\n```bash\n# For
+//         OpenRouter\nAPI_KEY=\"$OPENROUTER_API_KEY\"
+//         API_URL=\"https://openrouter.ai/api/v1\" MODEL=\"openrouter/free\"
+//         ./build/src/simple_agent\n\n# For Ollama (OpenAI-compatible
+//         API)\nAPI_KEY=\"ollama\" API_URL=\"http://localhost:11434/v1\"
+//         MODEL=\"gemma4:e4b\" ./build/src/simple_agent\n\n# For LM Studio
+//         (OpenAI-compatible API)\nAPI_KEY=\"lmstudio\"
+//         API_URL=\"http://localhost:1234/v1\" MODEL=\"gemma4:e4b\"
+//         ./build/src/simple_agent\n```\n\n## clang-format\n\nTo run
+//         clang-format, use following command\n\n```bash\ncmake --build build/
+//         --target format\n```\n\n***\n\nThis README outlines a simple AI agent
+//         developed in C++, detailing its features, how to build it, and how to
+//         run it with various local and remote API endpoints (OpenRouter,
+//         Ollama, and LM Studio).\n\nLet me know if you have any questions
+//         about this project, or if there is anything else I can help you
+//         with!", "reasoning": "The user asked to read the file `README.md`,
+//         and I executed the `read_file` tool with that path. The tool returned
+//         the content of the `README.md` file. Now, I need to present this
+//         content to the user in a readable and helpful manner. The content is
+//         a README for a simple AI agent written in C++. I should summarize
+//         what the file contains or just present the content clearly. Since
+//         it's a technical README, presenting it formatted might be best.",
+//         "role": "assistant"
+//       }
+//     }
+//   ],
+//   "created": 1775720028,
+//   "id": "chatcmpl-135",
+//   "model": "gemma4:e4b",
+//   "object": "chat.completion",
+//   "system_fingerprint": "fp_ollama",
+//   "usage": {
+//     "completion_tokens": 451,
+//     "prompt_tokens": 391,
+//     "total_tokens": 842
+//   }
+// }
+//
+std::optional<AssistantMessage> Agent::GetAssistantMessage(
+    const Json& response,
+    std::string* error) const {
+  error->clear();
+
   if (response.contains("error")) {
-    return "Error: " + response["error"].dump();
+    *error = response["error"].dump();
+    return std::nullopt;
   }
 
   if (!response.contains("choices") || !response["choices"].is_array() ||
       response["choices"].empty()) {
-    return "Error: Invalid response format: " + response.dump();
+    *error = "Invalid response format: " + response.dump();
+    return std::nullopt;
   }
 
+  if (!response["choices"][0].contains("message")) {
+    *error = "Invalid response format: choices[0].message missing";
+    return std::nullopt;
+  }
   const auto& msg = response["choices"][0]["message"];
-  if (!msg.contains("content") || !msg["content"].is_string()) {
-    return "Error: Response content is not a string";
+  if (!msg.is_object()) {
+    *error = "Invalid response message: " + msg.dump();
+    return std::nullopt;
   }
 
-  return msg["content"].get<std::string>();
+  std::string content;
+  if (msg.contains("content") && msg["content"].is_string()) {
+    content = msg["content"].get<std::string>();
+  }
+
+  if (msg.contains("tool_calls") && msg["tool_calls"].is_array() &&
+      !msg["tool_calls"].empty()) {
+    return AssistantMessage(content, msg["tool_calls"]);
+  }
+
+  return AssistantMessage(content);
 }

@@ -3,8 +3,8 @@
 
 #include <curl/curl.h>
 
-#include <memory>
 #include <nlohmann/json.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -21,18 +21,18 @@ class Agent {
   std::string Run(const std::string& query);
 
  private:
-  void AppendTextMessage(Role role, const std::string& text);
+  std::optional<AssistantMessage> GetAssistantMessage(const Json& response,
+                                                      std::string* error) const;
   Json SendRequest(const Json& payload);
   static size_t WriteCallback(void* contents,
                               size_t size,
                               size_t nmemb,
                               void* userp);
-  std::string GetResponseContent(const Json& response);
 
   std::string api_url_;
   std::string api_key_;
   std::string model_;
-  std::vector<Message> messages_;
+  std::vector<Json> messages_;
 };
 
 #endif  // AGENT_H_

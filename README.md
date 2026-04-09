@@ -3,6 +3,11 @@ simple agent
 
 A simple AI agent in c++
 
+## Features
+
+- Chat history
+- OpenAI-compatible `tools` support with built-in `read_file`
+
 ## Build
 
 ```bash
