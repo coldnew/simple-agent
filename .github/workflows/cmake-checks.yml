@@ -1,0 +1,44 @@
+name: CMake Checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build pkg-config clang-format libcurl4-openssl-dev
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja
+
+      - name: Run clang-format check
+        run: cmake --build build --target format-check
+
+  build-check:
+    name: Build Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build pkg-config libcurl4-openssl-dev
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja
+
+      - name: Build
+        run: cmake --build build --config Release
