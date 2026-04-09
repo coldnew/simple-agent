@@ -14,19 +14,19 @@ make -j30
 ## Usage
 
 ```bash
-API_KEY="$OPENROUTER_API_KEY" API_URL="https://openrouter.ai/api/v1" MODEL="openrouter/free" ./build/simple_agent
+API_KEY="$OPENROUTER_API_KEY" API_URL="https://openrouter.ai/api/v1" MODEL="openrouter/free" ./build/src/simple_agent
 ```
 
 ### Ollama (OpenAI-compatible API)
 
 ```bash
-API_KEY="ollama" API_URL="http://localhost:11434/v1" MODEL="gemma4:e4b" ./build/simple_agent
+API_KEY="ollama" API_URL="http://localhost:11434/v1" MODEL="gemma4:e4b" ./build/src/simple_agent
 ```
 
 ### LM Studio (OpenAI-compatible API)
 
 ```bash
-API_KEY="lmstudio" API_URL="http://localhost:1234/v1" MODEL="gemma4:e4b" ./build/simple_agent
+API_KEY="lmstudio" API_URL="http://localhost:1234/v1" MODEL="gemma4:e4b" ./build/src/simple_agent
 ```
 
 ## clang-format
