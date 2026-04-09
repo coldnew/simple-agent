@@ -21,6 +21,8 @@ class Agent {
   std::string Run(const std::string& query);
 
  private:
+  friend struct AgentTest;
+
   std::optional<AssistantMessage> GetAssistantMessage(const Json& response,
                                                       std::string* error) const;
   Json SendRequest(const Json& payload);

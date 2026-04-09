@@ -21,8 +21,10 @@ ENABLE_LANGUAGE(C CXX)
 INCLUDE(FeatureSummary)
 INCLUDE(FindPkgConfig)
 INCLUDE(FetchContent)
+INCLUDE(CTest)
 
 INCLUDE(cmake/clang-format.cmake)
+INCLUDE(cmake/gtest.cmake)
 
 # Detect avaliable options directly
 INCLUDE(options.cmake)
