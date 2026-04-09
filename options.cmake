@@ -41,16 +41,16 @@ IF(BREAKPAD_FOUND)
   SET_PROPERTY(GLOBAL APPEND PROPERTY PACKAGES_FOUND libcurl)
 ENDIF()
 
-
-#-------------------------------------------------------------------------------
-# Third-party dependencies
-#-------------------------------------------------------------------------------
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-    GIT_TAG        v3.11.3
-)
-FetchContent_MakeAvailable(nlohmann_json)
+# nlohmann_json
+FIND_PACKAGE(nlohmann_json QUIET)
+IF(NOT nlohmann_json_FOUND)
+  FetchContent_Declare(
+      nlohmann_json
+      GIT_REPOSITORY https://github.com/nlohmann/json.git
+      GIT_TAG        v3.11.3
+  )
+  FetchContent_MakeAvailable(nlohmann_json)
+ENDIF()
 
 
 #-------------------------------------------------------------------------------
