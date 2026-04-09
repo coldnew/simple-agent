@@ -4,10 +4,23 @@
 
 Agent::Agent(const std::string& api_url,
              const std::string& api_key,
-             const std::string& model)
-    : api_url_(api_url), api_key_(api_key), model_(model) {}
+             const std::string& model,
+             const std::string& system_prompt)
+    : api_url_(api_url), api_key_(api_key), model_(model) {
+  if (!system_prompt.empty()) {
+    AppendTextMessage(Role::kSystem, system_prompt);
+  }
+}
 
 Agent::~Agent() = default;
+
+void Agent::AppendTextMessage(Role role, const std::string& text) {
+  Message msg;
+  msg.role = role;
+  msg.content_type = ContentType::kText;
+  msg.text = text;
+  messages_.push_back(msg);
+}
 
 size_t Agent::WriteCallback(void* contents,
                             size_t size,
@@ -79,22 +92,8 @@ Json Agent::SendRequest(const Json& payload) {
   }
 }
 
-std::string Agent::Run(const std::string& query,
-                       const std::string& system_prompt) {
-  // system prompt only added for the first message, if messages_ is empty
-  if (!system_prompt.empty() && messages_.empty()) {
-    Message sys_msg;
-    sys_msg.role = Role::kSystem;
-    sys_msg.content_type = ContentType::kText;
-    sys_msg.text = system_prompt;
-    messages_.push_back(sys_msg);
-  }
-
-  Message user_msg;
-  user_msg.role = Role::kUser;
-  user_msg.content_type = ContentType::kText;
-  user_msg.text = query;
-  messages_.push_back(user_msg);
+std::string Agent::Run(const std::string& query) {
+  AppendTextMessage(Role::kUser, query);
 
   Json payload;
   payload["model"] = model_;
@@ -116,11 +115,7 @@ std::string Agent::Run(const std::string& query,
 
   // update messages with assistant response so that the next query
   // will have the full conversation history
-  Message assistant_msg;
-  assistant_msg.role = Role::kAssistant;
-  assistant_msg.content_type = ContentType::kText;
-  assistant_msg.text = content;
-  messages_.push_back(assistant_msg);
+  AppendTextMessage(Role::kAssistant, content);
 
   return content;
 }

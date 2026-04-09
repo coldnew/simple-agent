@@ -14,13 +14,14 @@ class Agent {
  public:
   Agent(const std::string& api_url,
         const std::string& api_key,
-        const std::string& model);
+        const std::string& model,
+        const std::string& system_prompt = "");
   ~Agent();
 
-  std::string Run(const std::string& query,
-                  const std::string& system_prompt = "");
+  std::string Run(const std::string& query);
 
  private:
+  void AppendTextMessage(Role role, const std::string& text);
   Json SendRequest(const Json& payload);
   static size_t WriteCallback(void* contents,
                               size_t size,
