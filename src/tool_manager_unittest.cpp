@@ -38,10 +38,11 @@ TEST_F(ToolsSchemaTest, ContainsReadFileSchema) {
   const Json schema = tool_manager.BuildToolsSchema();
 
   ASSERT_TRUE(schema.is_array());
-  ASSERT_EQ(schema.size(), 2);
+  ASSERT_EQ(schema.size(), 3);
 
   bool found_read_file = false;
   bool found_write_file = false;
+  bool found_edit_file = false;
   for (const auto& tool : schema) {
     if (tool["function"]["name"] == "read_file") {
       found_read_file = true;
@@ -49,27 +50,42 @@ TEST_F(ToolsSchemaTest, ContainsReadFileSchema) {
       EXPECT_EQ(tool["function"]["parameters"]["type"], "object");
     } else if (tool["function"]["name"] == "write_file") {
       found_write_file = true;
+    } else if (tool["function"]["name"] == "edit_file") {
+      found_edit_file = true;
     }
   }
   EXPECT_TRUE(found_read_file) << "read_file not found in schema";
   EXPECT_TRUE(found_write_file) << "write_file not found in schema";
+  EXPECT_TRUE(found_edit_file) << "edit_file not found in schema";
 }
 
 TEST_F(ToolsSchemaTest, ContainsWriteFileSchema) {
   const Json schema = tool_manager.BuildToolsSchema();
 
   ASSERT_TRUE(schema.is_array());
-  ASSERT_EQ(schema.size(), 2);
+  ASSERT_EQ(schema.size(), 3);
 
   bool found_write_file = false;
+  bool found_edit_file = false;
   for (const auto& tool : schema) {
     if (tool["function"]["name"] == "write_file") {
       found_write_file = true;
       EXPECT_EQ(tool["type"], "function");
       EXPECT_EQ(tool["function"]["parameters"]["type"], "object");
+    } else if (tool["function"]["name"] == "edit_file") {
+      found_edit_file = true;
+      EXPECT_EQ(tool["function"]["parameters"]["properties"].contains("path"),
+                true);
+      EXPECT_EQ(
+          tool["function"]["parameters"]["properties"].contains("oldString"),
+          true);
+      EXPECT_EQ(
+          tool["function"]["parameters"]["properties"].contains("newString"),
+          true);
     }
   }
   EXPECT_TRUE(found_write_file) << "write_file not found in schema";
+  EXPECT_TRUE(found_edit_file) << "edit_file not found in schema";
 }
 
 struct ExecuteToolCallTest : testing::Test {
