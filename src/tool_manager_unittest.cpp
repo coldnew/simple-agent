@@ -96,6 +96,14 @@ TEST_F(ToolsSchemaTest, ContainsWriteFileSchema) {
 
 struct ExecuteToolCallTest : testing::Test {
   ToolManager tool_manager;
+
+  void SetUp() override {
+    // Allow all paths so tests can use /tmp without sandbox prompts.
+    tool_manager.sandbox().set_confirm_fn(
+        [](const std::string&, const std::string&) {
+          return Sandbox::Answer::kAlways;
+        });
+  }
 };
 
 TEST_F(ExecuteToolCallTest, RejectsNonObjectPayload) {
