@@ -1,5 +1,7 @@
 #include "agent.h"
 
+#include <fmt/color.h>
+
 #include <iostream>
 
 #include "tool_manager.h"
@@ -7,8 +9,9 @@
 Agent::Agent(const std::string& api_url,
              const std::string& api_key,
              const std::string& model,
-             const std::string& system_prompt)
-    : api_url_(api_url), api_key_(api_key), model_(model) {
+             const std::string& system_prompt,
+             bool verbose)
+    : api_url_(api_url), api_key_(api_key), model_(model), verbose_(verbose) {
   if (!system_prompt.empty()) {
     messages_.push_back(SystemMessage(system_prompt).ToJson());
   }
@@ -27,6 +30,11 @@ size_t Agent::WriteCallback(void* contents,
 }
 
 Json Agent::SendRequest(const Json& payload) {
+  if (verbose_) {
+    std::cout << "\n=== Send ===" << std::endl;
+    fmt::print(fg(fmt::terminal_color::bright_white), "{}\n", payload.dump(2));
+  }
+
   CURL* curl = curl_easy_init();
   if (!curl) {
     return Json::object({{"error", "Failed to init curl"}});
@@ -80,7 +88,12 @@ Json Agent::SendRequest(const Json& payload) {
   }
 
   try {
-    return Json::parse(response);
+    Json result = Json::parse(response);
+    if (verbose_) {
+      std::cout << "\n=== Response ===" << std::endl;
+      fmt::print(fg(fmt::terminal_color::bright_white), "{}\n", result.dump(2));
+    }
+    return result;
   } catch (...) {
     return Json::object({{"error", "Failed to parse response: " + response}});
   }

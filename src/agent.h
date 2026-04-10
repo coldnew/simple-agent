@@ -15,10 +15,12 @@ class Agent {
   Agent(const std::string& api_url,
         const std::string& api_key,
         const std::string& model,
-        const std::string& system_prompt = "");
+        const std::string& system_prompt = "",
+        bool verbose = false);
   ~Agent();
 
   std::string Run(const std::string& query);
+  void set_verbose(bool verbose) { verbose_ = verbose; }
 
  private:
   friend struct AgentTest;
@@ -35,6 +37,7 @@ class Agent {
   std::string api_key_;
   std::string model_;
   std::vector<Json> messages_;
+  bool verbose_;
 };
 
 #endif  // AGENT_H_

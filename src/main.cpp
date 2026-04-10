@@ -1,11 +1,31 @@
 #include <fmt/color.h>
+#include <getopt.h>
 
 #include <cstdlib>
 #include <iostream>
 
 #include "agent.h"
 
-int main() {
+int main(int argc, char* argv[]) {
+  bool verbose = false;
+
+  int opt;
+  while ((opt = getopt(argc, argv, "vh")) != -1) {
+    switch (opt) {
+      case 'v':
+        verbose = true;
+        break;
+      case 'h':
+        std::cout << "Usage: " << argv[0] << " [-v] [-h]\n"
+                  << "  -v, --verbose    Print request/response dumps\n"
+                  << "  -h, --help      Show this help message\n";
+        return 0;
+      default:
+        std::cerr << "Usage: " << argv[0] << " [-v] [-h]\n";
+        return 1;
+    }
+  }
+
   const char* api_url = std::getenv("API_URL");
   const char* api_key = std::getenv("API_KEY");
   const char* model = std::getenv("MODEL");
@@ -24,7 +44,7 @@ int main() {
 
   std::string system_prompt = R"(You are a helpful assistant who named AI.)";
 
-  Agent agent(url, key, model_name, system_prompt);
+  Agent agent(url, key, model_name, system_prompt, verbose);
 
   std::cout << "Simple Agent - Enter your query (or 'quit' to exit):"
             << std::endl;
