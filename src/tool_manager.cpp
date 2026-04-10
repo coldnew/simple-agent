@@ -6,6 +6,7 @@ ToolManager::ToolManager() {
   Register(CreateReadFileTool());
   Register(CreateWriteFileTool());
   Register(CreateEditFileTool());
+  Register(CreateShellTool());
 }
 
 std::optional<ToolMessage> ToolManager::Execute(const Json& tool_call,

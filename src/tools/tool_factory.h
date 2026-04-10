@@ -19,5 +19,6 @@ class Tool {
 std::unique_ptr<Tool> CreateReadFileTool();
 std::unique_ptr<Tool> CreateWriteFileTool();
 std::unique_ptr<Tool> CreateEditFileTool();
+std::unique_ptr<Tool> CreateShellTool();
 
 #endif  // TOOLS_FACTORY_

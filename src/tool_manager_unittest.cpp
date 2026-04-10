@@ -8,6 +8,7 @@
 
 #include "message.cpp"
 #include "tools/read_file.cpp"
+#include "tools/shell.cpp"
 #include "tools/write_file.cpp"
 
 namespace {
@@ -38,11 +39,12 @@ TEST_F(ToolsSchemaTest, ContainsReadFileSchema) {
   const Json schema = tool_manager.BuildToolsSchema();
 
   ASSERT_TRUE(schema.is_array());
-  ASSERT_EQ(schema.size(), 3);
+  ASSERT_EQ(schema.size(), 4);
 
   bool found_read_file = false;
   bool found_write_file = false;
   bool found_edit_file = false;
+  bool found_bash = false;
   for (const auto& tool : schema) {
     if (tool["function"]["name"] == "read_file") {
       found_read_file = true;
@@ -52,18 +54,21 @@ TEST_F(ToolsSchemaTest, ContainsReadFileSchema) {
       found_write_file = true;
     } else if (tool["function"]["name"] == "edit_file") {
       found_edit_file = true;
+    } else if (tool["function"]["name"] == "shell") {
+      found_bash = true;
     }
   }
   EXPECT_TRUE(found_read_file) << "read_file not found in schema";
   EXPECT_TRUE(found_write_file) << "write_file not found in schema";
   EXPECT_TRUE(found_edit_file) << "edit_file not found in schema";
+  EXPECT_TRUE(found_bash) << "bash not found in schema";
 }
 
 TEST_F(ToolsSchemaTest, ContainsWriteFileSchema) {
   const Json schema = tool_manager.BuildToolsSchema();
 
   ASSERT_TRUE(schema.is_array());
-  ASSERT_EQ(schema.size(), 3);
+  ASSERT_EQ(schema.size(), 4);
 
   bool found_write_file = false;
   bool found_edit_file = false;

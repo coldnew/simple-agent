@@ -11,6 +11,7 @@ ADD_LIBRARY (tool-static STATIC
   read_file.cpp
   write_file.cpp
   edit_file.cpp
+  shell.cpp
 )	
 
 #-------------------------------------------------------------------------------
