@@ -40,6 +40,14 @@ API_KEY="ollama" API_URL="http://localhost:11434/v1" MODEL="gemma4:e4b" ./build/
 API_KEY="lmstudio" API_URL="http://localhost:1234/v1" MODEL="gemma4:e4b" ./build/src/simple_agent
 ```
 
+## Price information
+
+If your llm provider not free, ex: Input Price $0.429, Output Price $4.41, you can setup `INPUT_PRICE` and `OUTPUT_PRICE` variable to display cost.
+
+```bash
+INPUT_PRICE=0.429 OUTPUT_PRICE=4.41 API_KEY="$OPENROUTER_API_KEY" API_URL="https://openrouter.ai/api/v1" MODEL="z-ai/glm-5.1" ./build/src/simple_agent
+```
+
 ## clang-format
 
 To run clang-format, use following command
