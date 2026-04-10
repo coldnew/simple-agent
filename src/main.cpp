@@ -72,8 +72,7 @@ int main(int argc, char* argv[]) {
 
     const std::string result = agent.Run(query);
     fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "\nAI > ");
-    // Text was already printed during streaming; just add a trailing newline.
-    fmt::print("\n");
+    fmt::print("{}\n", result);
     // show token usage and cost if available
     agent.ShowTokenUsage();
   }
