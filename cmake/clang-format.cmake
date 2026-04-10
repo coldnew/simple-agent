@@ -1,6 +1,10 @@
 INCLUDE(FeatureSummary)
 
-find_program(CLANG_FORMAT_BIN NAMES clang-format)
+if(CLANG_FORMAT_PROGRAM)
+  find_program(CLANG_FORMAT_BIN NAMES ${CLANG_FORMAT_PROGRAM})
+else()
+  find_program(CLANG_FORMAT_BIN NAMES clang-format)
+endif()
 
 if(CLANG_FORMAT_BIN)
   ADD_FEATURE_INFO(CLANG_FORMAT TRUE "Use cmake --build . --target format to format all source files using clang-format")
