@@ -21,7 +21,8 @@ TARGET_INCLUDE_DIRECTORIES(tool-static
 TARGET_LINK_LIBRARIES(
   tool-static
   PRIVATE
-  nlohmann_json)
+  nlohmann_json
+  fmt::fmt)
 
 
 

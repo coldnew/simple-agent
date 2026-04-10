@@ -16,6 +16,7 @@ ADD_EXECUTABLE(simple_agent
 TARGET_LINK_LIBRARIES(simple_agent PRIVATE
     ${CURL_LIBRARIES}
     nlohmann_json::nlohmann_json
+    fmt::fmt
     tool-static
 )
 
@@ -29,6 +30,7 @@ FOREACH(unittest ${unittests})
   ADD_UNITTEST(${unittest_name}
     ${CURL_LIBRARIES}
     nlohmann_json::nlohmann_json
+    fmt::fmt
     tool-static
   )
 ENDFOREACH()
