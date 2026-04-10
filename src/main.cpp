@@ -1,3 +1,5 @@
+#include <fmt/color.h>
+
 #include <cstdlib>
 #include <iostream>
 
@@ -28,7 +30,7 @@ int main() {
             << std::endl;
 
   while (true) {
-    std::cout << "\nUser > ";
+    fmt::print(fg(fmt::color::cyan) | fmt::emphasis::bold, "\nUser > ");
     std::string query;
     std::getline(std::cin, query);
 
@@ -42,7 +44,8 @@ int main() {
     }
 
     const std::string result = agent.Run(query);
-    std::cout << "\nAI > " << result << std::endl;
+    fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "\nAI > ");
+    fmt::print("{}\n", result);
   }
 
   return 0;
