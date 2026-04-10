@@ -8,28 +8,30 @@ keywords:
   - CMakeLists
 ---
 
-When creating C++ projects, you MUST use this exact structure:
+When creating C++ projects, you MUST follow these rules:
+
+1. Use the EXACT project name the user specifies. If the user says "create project in ASDF", the directory MUST be named "ASDF", NOT "hello_world" or any other name you invent.
+2. main.cpp MUST be inside src/, never at project root
+3. There MUST be two CMakeLists.txt files: one at root, one in src/
+4. The root CMakeLists.txt adds src/ as a subdirectory
+5. In src/CMakeLists.txt, source paths are RELATIVE to src/ — use "main.cpp" NOT "src/main.cpp"
+
+Required directory structure (replace PROJECT_NAME with the user's chosen name):
 
 ```
-<project>/CMakeLists.txt
-<project>/src/CMakeLists.txt
-<project>/src/main.cpp
+PROJECT_NAME/CMakeLists.txt
+PROJECT_NAME/src/CMakeLists.txt
+PROJECT_NAME/src/main.cpp
 ```
-
-Rules:
-1. main.cpp MUST be inside src/, never at project root
-2. There MUST be two CMakeLists.txt files: one at root, one in src/
-3. The root CMakeLists.txt adds src/ as a subdirectory
-4. In src/CMakeLists.txt, source paths are RELATIVE to src/ — use "main.cpp" NOT "src/main.cpp"
 
 Example src/CMakeLists.txt:
 ```cmake
-add_executable(myapp main.cpp)
+add_executable(PROJECT_NAME main.cpp)
 ```
 
 Example root CMakeLists.txt:
 ```cmake
 cmake_minimum_required(VERSION 3.10)
-project(myapp)
+project(PROJECT_NAME)
 add_subdirectory(src)
 ```
