@@ -4,6 +4,7 @@
 
 ToolManager::ToolManager() {
   Register(CreateReadFileTool());
+  Register(CreateWriteFileTool());
 }
 
 std::optional<ToolMessage> ToolManager::Execute(const Json& tool_call,

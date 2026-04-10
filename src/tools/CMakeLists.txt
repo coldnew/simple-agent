@@ -9,6 +9,7 @@ INCLUDE_DIRECTORIES (${PROJECT_SOURCE_DIR}/src)
 
 ADD_LIBRARY (tool-static STATIC
   read_file.cpp
+  write_file.cpp
 )	
 
 #-------------------------------------------------------------------------------

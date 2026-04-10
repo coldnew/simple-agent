@@ -8,6 +8,7 @@
 
 #include "message.cpp"
 #include "tools/read_file.cpp"
+#include "tools/write_file.cpp"
 
 namespace {
 
@@ -37,10 +38,38 @@ TEST_F(ToolsSchemaTest, ContainsReadFileSchema) {
   const Json schema = tool_manager.BuildToolsSchema();
 
   ASSERT_TRUE(schema.is_array());
-  ASSERT_EQ(schema.size(), 1);
-  EXPECT_EQ(schema[0]["type"], "function");
-  EXPECT_EQ(schema[0]["function"]["name"], "read_file");
-  EXPECT_EQ(schema[0]["function"]["parameters"]["type"], "object");
+  ASSERT_EQ(schema.size(), 2);
+
+  bool found_read_file = false;
+  bool found_write_file = false;
+  for (const auto& tool : schema) {
+    if (tool["function"]["name"] == "read_file") {
+      found_read_file = true;
+      EXPECT_EQ(tool["type"], "function");
+      EXPECT_EQ(tool["function"]["parameters"]["type"], "object");
+    } else if (tool["function"]["name"] == "write_file") {
+      found_write_file = true;
+    }
+  }
+  EXPECT_TRUE(found_read_file) << "read_file not found in schema";
+  EXPECT_TRUE(found_write_file) << "write_file not found in schema";
+}
+
+TEST_F(ToolsSchemaTest, ContainsWriteFileSchema) {
+  const Json schema = tool_manager.BuildToolsSchema();
+
+  ASSERT_TRUE(schema.is_array());
+  ASSERT_EQ(schema.size(), 2);
+
+  bool found_write_file = false;
+  for (const auto& tool : schema) {
+    if (tool["function"]["name"] == "write_file") {
+      found_write_file = true;
+      EXPECT_EQ(tool["type"], "function");
+      EXPECT_EQ(tool["function"]["parameters"]["type"], "object");
+    }
+  }
+  EXPECT_TRUE(found_write_file) << "write_file not found in schema";
 }
 
 struct ExecuteToolCallTest : testing::Test {
@@ -135,6 +164,46 @@ TEST_F(ExecuteToolCallTest, ReadFileTruncatesLargeContent) {
 
   const std::string content = result->ToJson()["content"].get<std::string>();
   EXPECT_NE(content.find("[truncated to 64KB]"), std::string::npos);
+
+  std::filesystem::remove(path);
+}
+
+TEST_F(ExecuteToolCallTest, RejectsWriteFileWithoutPath) {
+  std::string error;
+  const Json tool_call = BuildToolCall("call_6", "write_file", Json::object());
+
+  const auto result = tool_manager.Execute(tool_call, &error);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(error, "write_file requires string field: path");
+}
+
+TEST_F(ExecuteToolCallTest, RejectsWriteFileWithoutContent) {
+  std::string error;
+  const Json tool_call = BuildToolCall(
+      "call_7", "write_file", Json::object({{"path", "/tmp/test.txt"}}));
+
+  const auto result = tool_manager.Execute(tool_call, &error);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_EQ(error, "write_file requires string field: content");
+}
+
+TEST_F(ExecuteToolCallTest, WriteFileCreatesFile) {
+  const std::filesystem::path path = TempPath("write_test");
+  std::filesystem::remove(path);
+
+  std::string error;
+  const Json args =
+      Json::object({{"path", path.string()}, {"content", "hello world"}});
+  const Json tool_call = BuildToolCall("call_8", "write_file", args);
+
+  const auto result = tool_manager.Execute(tool_call, &error);
+  ASSERT_TRUE(result.has_value()) << error;
+
+  const Json tool_json = result->ToJson();
+  EXPECT_EQ(tool_json["role"], "tool");
+  EXPECT_EQ(tool_json["name"], "write_file");
+  EXPECT_NE(tool_json["content"].get<std::string>().find("File written"),
+            std::string::npos);
 
   std::filesystem::remove(path);
 }
