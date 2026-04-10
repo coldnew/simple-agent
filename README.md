@@ -47,3 +47,8 @@ To run clang-format, use following command
 ```bash
 cmake --build build/ --target format
 ```
+
+## References
+
+- [Learn Claude Code](https://learn.shareai.run/en/)
+- [Build your own agent in Rust](https://odysa.github.io/mini-claw-code/en/)
