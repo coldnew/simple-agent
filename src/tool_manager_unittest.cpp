@@ -1,3 +1,5 @@
+#include "tool_manager.cpp"
+
 #include <gtest/gtest.h>
 
 #include <filesystem>
@@ -5,7 +7,6 @@
 #include <string>
 
 #include "message.cpp"
-#include "tool_manager.cpp"
 #include "tools/read_file.cpp"
 
 namespace {

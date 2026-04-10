@@ -6,7 +6,6 @@
 
 #include "message.cpp"
 #include "tool_manager.cpp"
-#include "tools/read_file.cpp"
 
 namespace {
 
