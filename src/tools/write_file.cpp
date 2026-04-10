@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <fstream>
 
 #include "tool_factory.h"
@@ -21,6 +22,13 @@ std::string WriteFileContent(const Json& arguments, std::string* error) {
 
   const std::string path = arguments["path"].get<std::string>();
   const std::string content = arguments["content"].get<std::string>();
+
+  // Create parent directories if they don't exist.
+  std::filesystem::path p(path);
+  if (p.has_parent_path()) {
+    std::error_code ec;
+    std::filesystem::create_directories(p.parent_path(), ec);
+  }
 
   std::ofstream ofs(path, std::ios::out | std::ios::binary);
   if (!ofs.is_open()) {
