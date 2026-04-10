@@ -10,8 +10,12 @@ Agent::Agent(const std::string& api_url,
              const std::string& api_key,
              const std::string& model,
              const std::string& system_prompt,
-             bool verbose)
+             bool verbose,
+             double input_price,
+             double output_price)
     : api_url_(api_url), api_key_(api_key), model_(model), verbose_(verbose) {
+  cumulative_usage_.input_price = input_price;
+  cumulative_usage_.output_price = output_price;
   if (!system_prompt.empty()) {
     messages_.push_back(SystemMessage(system_prompt).ToJson());
   }
@@ -46,6 +50,14 @@ void Agent::ProcessSSELine(const std::string& line, StreamState* state) {
 
   if (state->verbose) {
     fmt::print(fg(fmt::terminal_color::bright_white), "{}\n", chunk.dump(2));
+  }
+
+  // Capture token usage (sent in the final chunk when include_usage is set).
+  if (chunk.contains("usage") && chunk["usage"].is_object()) {
+    const auto& u = chunk["usage"];
+    state->usage.prompt_tokens = u.value("prompt_tokens", 0);
+    state->usage.completion_tokens = u.value("completion_tokens", 0);
+    state->usage.total_tokens = u.value("total_tokens", 0);
   }
 
   if (!chunk.contains("choices") || !chunk["choices"].is_array() ||
@@ -182,6 +194,11 @@ std::optional<AssistantMessage> Agent::SendStreamingRequest(
                accumulated.dump(2));
   }
 
+  // Accumulate token usage from this request.
+  cumulative_usage_.prompt_tokens += state.usage.prompt_tokens;
+  cumulative_usage_.completion_tokens += state.usage.completion_tokens;
+  cumulative_usage_.total_tokens += state.usage.total_tokens;
+
   if (!state.tool_calls.empty()) {
     return AssistantMessage(state.content, state.tool_calls);
   }
@@ -200,6 +217,7 @@ std::string Agent::Run(const std::string& query) {
     payload["model"] = model_;
     payload["max_tokens"] = 1024;
     payload["stream"] = true;
+    payload["stream_options"] = {{"include_usage", true}};
     payload["tools"] = tool_manager.BuildToolsSchema();
     payload["tool_choice"] = "auto";
     payload["messages"] = messages_;
@@ -234,3 +252,17 @@ std::string Agent::Run(const std::string& query) {
   return "Error: Reached max tool-call rounds";
 }
 
+void Agent::ShowTokenUsage() const {
+  const auto& usage = cumulative_usage();
+  if (usage.input_price > 0 || usage.output_price > 0) {
+    fmt::print(fg(fmt::terminal_color::bright_black),
+               "[tokens: in={}, out={} | cost: ${:.6f} (in=${:.6f}, "
+               "out=${:.6f})]\n",
+               usage.prompt_tokens, usage.completion_tokens, usage.TotalCost(),
+               usage.InputCost(), usage.OutputCost());
+  } else {
+    fmt::print(fg(fmt::terminal_color::bright_black),
+               "[tokens: in={}, out={}]\n", usage.prompt_tokens,
+               usage.completion_tokens);
+  }
+}
