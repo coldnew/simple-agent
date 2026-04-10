@@ -11,7 +11,8 @@ struct AgentTest : testing::Test {
 
   std::optional<AssistantMessage> GetAssistantMessage(const Json& response,
                                                       std::string* error) {
-    return agent.GetAssistantMessage(response, error);
+    TokenUsage usage;
+    return agent.GetAssistantMessage(response, error, usage);
   }
 };
 

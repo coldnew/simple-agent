@@ -42,9 +42,16 @@ int main(int argc, char* argv[]) {
   key = api_key;
   model_name = model;
 
+  // Token pricing per million tokens (USD). Optional.
+  const char* input_price_env = std::getenv("INPUT_PRICE");
+  const char* output_price_env = std::getenv("OUTPUT_PRICE");
+  double input_price = input_price_env ? std::atof(input_price_env) : 0.0;
+  double output_price = output_price_env ? std::atof(output_price_env) : 0.0;
+
   std::string system_prompt = R"(You are a helpful assistant who named AI.)";
 
-  Agent agent(url, key, model_name, system_prompt, verbose);
+  Agent agent(url, key, model_name, system_prompt, verbose, input_price,
+              output_price);
 
   std::cout << "Simple Agent - Enter your query (or 'quit' to exit):"
             << std::endl;
@@ -65,7 +72,10 @@ int main(int argc, char* argv[]) {
 
     const std::string result = agent.Run(query);
     fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "\nAI > ");
-    fmt::print("{}\n", result);
+    // Text was already printed during streaming; just add a trailing newline.
+    fmt::print("\n");
+    // show token usage and cost if available
+    agent.ShowTokenUsage();
   }
 
   return 0;

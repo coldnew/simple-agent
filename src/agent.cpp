@@ -10,8 +10,12 @@ Agent::Agent(const std::string& api_url,
              const std::string& api_key,
              const std::string& model,
              const std::string& system_prompt,
-             bool verbose)
+             bool verbose,
+             double input_price,
+             double output_price)
     : api_url_(api_url), api_key_(api_key), model_(model), verbose_(verbose) {
+  cumulative_usage_.input_price = input_price;
+  cumulative_usage_.output_price = output_price;
   if (!system_prompt.empty()) {
     messages_.push_back(SystemMessage(system_prompt).ToJson());
   }
@@ -123,7 +127,7 @@ std::string Agent::Run(const std::string& query) {
 
     std::string error;
     const std::optional<AssistantMessage> assistant_msg =
-        GetAssistantMessage(response, &error);
+        GetAssistantMessage(response, &error, cumulative_usage_);
     if (!assistant_msg.has_value()) {
       return "Error: " + error;
     }
@@ -414,7 +418,8 @@ std::string Agent::Run(const std::string& query) {
 //
 std::optional<AssistantMessage> Agent::GetAssistantMessage(
     const Json& response,
-    std::string* error) const {
+    std::string* error,
+    TokenUsage& usage) const {
   error->clear();
 
   if (response.contains("error")) {
@@ -443,10 +448,38 @@ std::optional<AssistantMessage> Agent::GetAssistantMessage(
     content = msg["content"].get<std::string>();
   }
 
+  if (response.contains("usage") && response["usage"].is_object()) {
+    const auto& u = response["usage"];
+    if (u.contains("prompt_tokens") && u["prompt_tokens"].is_number()) {
+      usage.prompt_tokens = u["prompt_tokens"].get<int>();
+    }
+    if (u.contains("completion_tokens") && u["completion_tokens"].is_number()) {
+      usage.completion_tokens = u["completion_tokens"].get<int>();
+    }
+    if (u.contains("total_tokens") && u["total_tokens"].is_number()) {
+      usage.total_tokens = u["total_tokens"].get<int>();
+    }
+  }
+
   if (msg.contains("tool_calls") && msg["tool_calls"].is_array() &&
       !msg["tool_calls"].empty()) {
     return AssistantMessage(content, msg["tool_calls"]);
   }
 
   return AssistantMessage(content);
+}
+
+void Agent::ShowTokenUsage() const {
+  const auto& usage = cumulative_usage();
+  if (usage.input_price > 0 || usage.output_price > 0) {
+    fmt::print(fg(fmt::terminal_color::bright_black),
+               "[tokens: in={}, out={} | cost: ${:.6f} (in=${:.6f}, "
+               "out=${:.6f})]\n",
+               usage.prompt_tokens, usage.completion_tokens, usage.TotalCost(),
+               usage.InputCost(), usage.OutputCost());
+  } else {
+    fmt::print(fg(fmt::terminal_color::bright_black),
+               "[tokens: in={}, out={}]\n", usage.prompt_tokens,
+               usage.completion_tokens);
+  }
 }
