@@ -7,6 +7,7 @@
 #include <string>
 
 #include "message.cpp"
+#include "permission.cpp"
 #include "tools/read_file.cpp"
 #include "tools/shell.cpp"
 #include "tools/write_file.cpp"
@@ -227,4 +228,62 @@ TEST_F(ExecuteToolCallTest, WriteFileCreatesFile) {
             std::string::npos);
 
   std::filesystem::remove(path);
+}
+
+struct PermissionToolTest : testing::Test {
+  ToolManager tool_manager;
+
+  void SetUp() override {
+    working_dir_ =
+        std::filesystem::temp_directory_path() / "permission_tool_test";
+    std::filesystem::create_directories(working_dir_);
+    {
+      std::ofstream(working_dir_ / "allowed.txt") << "ok";
+    }
+
+    tool_manager.permission() = Permission(working_dir_.string());
+    // Auto-deny all out-of-permission requests.
+    tool_manager.permission().set_confirm_fn(
+        [](const std::string&, const std::string&) {
+          return Permission::Answer::kNo;
+        });
+  }
+
+  void TearDown() override { std::filesystem::remove_all(working_dir_); }
+
+  std::filesystem::path working_dir_;
+};
+
+TEST_F(PermissionToolTest, AllowsReadInsidePermission) {
+  std::string error;
+  const Json args =
+      Json::object({{"path", (working_dir_ / "allowed.txt").string()}});
+  const auto result = tool_manager.Execute("read_file", args, &error);
+  ASSERT_TRUE(result.has_value()) << error;
+  EXPECT_EQ(result->Text(), "ok");
+}
+
+TEST_F(PermissionToolTest, DeniesReadOutsidePermission) {
+  std::string error;
+  const Json args = Json::object({{"path", "/etc/hostname"}});
+  const auto result = tool_manager.Execute("read_file", args, &error);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_NE(error.find("Permission"), std::string::npos);
+}
+
+TEST_F(PermissionToolTest, DeniesWriteOutsidePermission) {
+  std::string error;
+  const Json args =
+      Json::object({{"path", "/tmp/permission_evil.txt"}, {"content", "bad"}});
+  const auto result = tool_manager.Execute("write_file", args, &error);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_NE(error.find("Permission"), std::string::npos);
+}
+
+TEST_F(PermissionToolTest, ShellToolSkipsPermissionCheck) {
+  std::string error;
+  const Json args = Json::object({{"command", "echo hello"}});
+  const auto result = tool_manager.Execute("shell", args, &error);
+  ASSERT_TRUE(result.has_value()) << error;
+  EXPECT_EQ(result->Text(), "hello");
 }

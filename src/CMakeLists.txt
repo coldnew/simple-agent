@@ -10,6 +10,7 @@ ADD_EXECUTABLE(simple_agent
     main.cpp
     agent.cpp
     message.cpp
+    permission.cpp
     tool_manager.cpp
 )
 
