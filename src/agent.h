@@ -10,6 +10,15 @@
 
 #include "message.h"
 
+// Holds accumulated state while processing an SSE stream.
+struct StreamState {
+  std::string line_buffer;  // partial SSE line not yet terminated by \n
+  std::string content;      // accumulated text content
+  Json tool_calls = Json::array();
+  bool verbose = false;
+  bool done = false;
+};
+
 class Agent {
  public:
   Agent(const std::string& api_url,
@@ -25,13 +34,13 @@ class Agent {
  private:
   friend struct AgentTest;
 
-  std::optional<AssistantMessage> GetAssistantMessage(const Json& response,
-                                                      std::string* error) const;
-  Json SendRequest(const Json& payload);
-  static size_t WriteCallback(void* contents,
-                              size_t size,
-                              size_t nmemb,
-                              void* userp);
+  std::optional<AssistantMessage> SendStreamingRequest(const Json& payload,
+                                                       std::string* error);
+  static size_t StreamCallback(void* contents,
+                               size_t size,
+                               size_t nmemb,
+                               void* userp);
+  static void ProcessSSELine(const std::string& line, StreamState* state);
 
   std::string api_url_;
   std::string api_key_;

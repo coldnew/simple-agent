@@ -9,80 +9,85 @@
 struct AgentTest : testing::Test {
   Agent agent{"http://localhost", "key", "model"};
 
-  std::optional<AssistantMessage> GetAssistantMessage(const Json& response,
-                                                      std::string* error) {
-    return agent.GetAssistantMessage(response, error);
+  static void ProcessSSELine(const std::string& line, StreamState* state) {
+    Agent::ProcessSSELine(line, state);
   }
 };
 
-TEST_F(AgentTest, ReturnsErrorFieldWhenResponseHasError) {
-  std::string error;
-  const auto msg =
-      GetAssistantMessage(Json::object({{"error", "boom"}}), &error);
+// --- SSE streaming tests ---
 
-  EXPECT_FALSE(msg.has_value());
-  EXPECT_EQ(error, "\"boom\"");
+TEST_F(AgentTest, SSEAccumulatesTextContent) {
+  StreamState state;
+
+  ProcessSSELine(
+      R"(data: {"choices":[{"delta":{"role":"assistant","content":"Hello"}}]})",
+      &state);
+  ProcessSSELine(R"(data: {"choices":[{"delta":{"content":" world"}}]})",
+                 &state);
+
+  EXPECT_EQ(state.content, "Hello world");
+  EXPECT_TRUE(state.tool_calls.empty());
+  EXPECT_FALSE(state.done);
 }
 
-TEST_F(AgentTest, RejectsMissingChoicesArray) {
-  std::string error;
-  const auto msg =
-      GetAssistantMessage(Json::object({{"id", "resp_1"}}), &error);
+TEST_F(AgentTest, SSEHandlesDone) {
+  StreamState state;
 
-  EXPECT_FALSE(msg.has_value());
-  EXPECT_NE(error.find("Invalid response format"), std::string::npos);
+  ProcessSSELine(R"(data: {"choices":[{"delta":{"content":"hi"}}]})", &state);
+  ProcessSSELine("data: [DONE]", &state);
+
+  EXPECT_EQ(state.content, "hi");
+  EXPECT_TRUE(state.done);
 }
 
-TEST_F(AgentTest, RejectsMissingMessageObject) {
-  std::string error;
-  const Json response =
-      Json::object({{"choices", Json::array({Json::object()})}});
-  const auto msg = GetAssistantMessage(response, &error);
+TEST_F(AgentTest, SSEIgnoresEmptyAndCommentLines) {
+  StreamState state;
 
-  EXPECT_FALSE(msg.has_value());
-  EXPECT_EQ(error, "Invalid response format: choices[0].message missing");
+  ProcessSSELine("", &state);
+  ProcessSSELine(": this is a comment", &state);
+  ProcessSSELine("event: message", &state);
+
+  EXPECT_TRUE(state.content.empty());
+  EXPECT_FALSE(state.done);
 }
 
-TEST_F(AgentTest, RejectsNonObjectMessage) {
-  std::string error;
-  const Json response = Json::object(
-      {{"choices", Json::array({Json::object({{"message", "not_object"}})})}});
-  const auto msg = GetAssistantMessage(response, &error);
+TEST_F(AgentTest, SSEAccumulatesToolCalls) {
+  StreamState state;
 
-  EXPECT_FALSE(msg.has_value());
-  EXPECT_NE(error.find("Invalid response message"), std::string::npos);
+  // First chunk: tool call with id and function name.
+  ProcessSSELine(
+      R"(data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"read_file","arguments":""}}]}}]})",
+      &state);
+
+  // Second chunk: arguments fragment.
+  ProcessSSELine(
+      R"(data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"path\":"}}]}}]})",
+      &state);
+
+  // Third chunk: rest of arguments.
+  ProcessSSELine(
+      R"(data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"README.md\"}"}}]}}]})",
+      &state);
+
+  ASSERT_EQ(state.tool_calls.size(), 1);
+  EXPECT_EQ(state.tool_calls[0]["id"], "call_1");
+  EXPECT_EQ(state.tool_calls[0]["function"]["name"], "read_file");
+  EXPECT_EQ(state.tool_calls[0]["function"]["arguments"],
+            R"({"path":"README.md"})");
 }
 
-TEST_F(AgentTest, ParsesPlainAssistantMessage) {
-  std::string error;
-  const Json response = Json::object(
-      {{"choices", Json::array({Json::object(
-                       {{"message", Json::object({{"content", "ok"}})}})})}});
+TEST_F(AgentTest, SSEHandlesMultipleToolCalls) {
+  StreamState state;
 
-  const auto msg = GetAssistantMessage(response, &error);
-  ASSERT_TRUE(msg.has_value()) << error;
+  ProcessSSELine(
+      R"(data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"read_file","arguments":"{}"}}]}}]})",
+      &state);
+  ProcessSSELine(
+      R"(data: {"choices":[{"delta":{"tool_calls":[{"index":1,"id":"call_2","type":"function","function":{"name":"write_file","arguments":"{}"}}]}}]})",
+      &state);
 
-  EXPECT_FALSE(msg->HasToolCalls());
-  EXPECT_EQ(msg->Text(), "ok");
-}
-
-TEST_F(AgentTest, ParsesMessageWithToolCalls) {
-  std::string error;
-  const Json tool_calls = Json::array(
-      {{{"id", "call_1"},
-        {"type", "function"},
-        {"function",
-         Json::object({{"name", "read_file"},
-                       {"arguments", "{\\\"path\\\":\\\"README.md\\\"}"}})}}});
-  const Json response = Json::object(
-      {{"choices",
-        Json::array({Json::object(
-            {{"message", Json::object({{"content", ""},
-                                       {"tool_calls", tool_calls}})}})})}});
-
-  const auto msg = GetAssistantMessage(response, &error);
-  ASSERT_TRUE(msg.has_value()) << error;
-
-  EXPECT_TRUE(msg->HasToolCalls());
-  EXPECT_EQ(msg->ToolCalls(), tool_calls);
+  ASSERT_EQ(state.tool_calls.size(), 2);
+  EXPECT_EQ(state.tool_calls[0]["id"], "call_1");
+  EXPECT_EQ(state.tool_calls[1]["id"], "call_2");
+  EXPECT_EQ(state.tool_calls[1]["function"]["name"], "write_file");
 }

@@ -63,9 +63,10 @@ int main(int argc, char* argv[]) {
       continue;
     }
 
-    const std::string result = agent.Run(query);
     fmt::print(fg(fmt::color::crimson) | fmt::emphasis::bold, "\nAI > ");
-    fmt::print("{}\n", result);
+    const std::string result = agent.Run(query);
+    // Text was already printed during streaming; just add a trailing newline.
+    fmt::print("\n");
   }
 
   return 0;
