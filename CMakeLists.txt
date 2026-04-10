@@ -25,8 +25,8 @@ INCLUDE(CTest)
 
 INCLUDE(cmake/clang-format.cmake)
 INCLUDE(cmake/gtest.cmake)
-
 INCLUDE(cmake/fmt.cmake)
+INCLUDE(cmake/yaml-cpp.cmake)
 
 # Detect avaliable options directly
 INCLUDE(options.cmake)

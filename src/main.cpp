@@ -49,11 +49,12 @@ int main(int argc, char* argv[]) {
   double output_price = output_price_env ? std::atof(output_price_env) : 0.0;
 
   std::string system_prompt = R"(You are a helpful assistant who named AI.)";
+  std::string skills_path = "skills";
 
-  Agent agent(url, key, model_name, system_prompt, verbose, input_price,
-              output_price);
+  Agent agent(url, key, model_name, system_prompt, skills_path, verbose,
+              input_price, output_price);
 
-  std::cout << "Simple Agent - Enter your query (or 'quit' to exit):"
+  std::cout << "\nSimple Agent - Enter your query (or 'quit' to exit):"
             << std::endl;
 
   while (true) {

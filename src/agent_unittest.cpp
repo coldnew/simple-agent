@@ -4,10 +4,11 @@
 
 #include "message.cpp"
 #include "sandbox.cpp"
+#include "skill.cpp"
 #include "tool_manager.cpp"
 
 struct AgentTest : testing::Test {
-  Agent agent{"http://localhost", "key", "model"};
+  Agent agent{"http://localhost", "key", "model", "", "skills"};
 
   std::optional<AssistantMessage> GetAssistantMessage(const Json& response,
                                                       std::string* error) {

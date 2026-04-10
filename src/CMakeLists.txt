@@ -11,6 +11,7 @@ ADD_EXECUTABLE(simple_agent
     agent.cpp
     message.cpp
     sandbox.cpp
+    skill.cpp
     tool_manager.cpp
 )
 
@@ -18,6 +19,7 @@ TARGET_LINK_LIBRARIES(simple_agent PRIVATE
     ${CURL_LIBRARIES}
     nlohmann_json::nlohmann_json
     fmt::fmt
+    yaml-cpp
     tool-static
 )
 
@@ -32,6 +34,7 @@ FOREACH(unittest ${unittests})
     ${CURL_LIBRARIES}
     nlohmann_json::nlohmann_json
     fmt::fmt
+    yaml-cpp
     tool-static
   )
 ENDFOREACH()

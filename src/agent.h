@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "message.h"
+#include "skill.h"
 
 // Token usage and cost tracking.
 struct TokenUsage {
@@ -31,6 +32,7 @@ class Agent {
         const std::string& api_key,
         const std::string& model,
         const std::string& system_prompt = "",
+        const std::string& skills_path = "skills",
         bool verbose = false,
         double input_price = 0.0,
         double output_price = 0.0);
@@ -39,11 +41,14 @@ class Agent {
   std::string Run(const std::string& query);
   void set_verbose(bool verbose) { verbose_ = verbose; }
   const TokenUsage& cumulative_usage() const { return cumulative_usage_; }
+  void RegisterSkill(Skill skill) { skill_manager_.Register(std::move(skill)); }
 
   void ShowTokenUsage() const;
 
  private:
   friend struct AgentTest;
+
+  void LoadSkills(const std::string& skills_path = "skills");
 
   std::optional<AssistantMessage> GetAssistantMessage(const Json& response,
                                                       std::string* error,
@@ -60,6 +65,7 @@ class Agent {
   std::vector<Json> messages_;
   bool verbose_;
   TokenUsage cumulative_usage_;
+  SkillManager skill_manager_;
 };
 
 #endif  // AGENT_H_

@@ -4,12 +4,14 @@
 
 #include <iostream>
 
+#include "skill.h"
 #include "tool_manager.h"
 
 Agent::Agent(const std::string& api_url,
              const std::string& api_key,
              const std::string& model,
              const std::string& system_prompt,
+             const std::string& skills_path,
              bool verbose,
              double input_price,
              double output_price)
@@ -19,6 +21,7 @@ Agent::Agent(const std::string& api_url,
   if (!system_prompt.empty()) {
     messages_.push_back(SystemMessage(system_prompt).ToJson());
   }
+  LoadSkills(skills_path);
 }
 
 Agent::~Agent() = default;
@@ -104,6 +107,31 @@ Json Agent::SendRequest(const Json& payload) {
 }
 
 std::string Agent::Run(const std::string& query) {
+  // When the query matches a skill, temporarily inject its instructions into
+  // the system prompt so the model follows them naturally — the user message
+  // stays unchanged. This matches how real-world agents handle skills: context
+  // goes in the system message, not the user message.
+  auto skill_instructions = skill_manager_.GetMatchingInstructions(query);
+  std::string original_system;
+  const bool has_system = !messages_.empty() && messages_[0].contains("role") &&
+                          messages_[0]["role"] == "system";
+  if (!skill_instructions.empty() && has_system) {
+    original_system = messages_[0]["content"].get<std::string>();
+    std::string extra = "\n\n## Active Skill Instructions\n";
+    for (const auto& inst : skill_instructions) {
+      extra += "\n" + inst + "\n";
+    }
+    messages_[0]["content"] = original_system + extra;
+  }
+
+  // Restore the system message to its original content when we leave Run(),
+  // so skill instructions don't accumulate across turns.
+  auto restore_system = [&]() {
+    if (!original_system.empty() && has_system) {
+      messages_[0]["content"] = original_system;
+    }
+  };
+
   messages_.push_back(UserMessage(query).ToJson());
 
   // A single user turn may include multiple model requests when tool calls
@@ -129,24 +157,38 @@ std::string Agent::Run(const std::string& query) {
     const std::optional<AssistantMessage> assistant_msg =
         GetAssistantMessage(response, &error, cumulative_usage_);
     if (!assistant_msg.has_value()) {
+      restore_system();
       return "Error: " + error;
     }
     messages_.push_back(assistant_msg->ToJson());
 
     if (!assistant_msg->HasToolCalls()) {
+      restore_system();
       return assistant_msg->Text();
     }
 
     for (const auto& tool_call : assistant_msg->ToolCalls()) {
+      const std::string tool_id =
+          tool_call.contains("id") ? tool_call["id"].get<std::string>() : "";
+      const std::string tool_name =
+          (tool_call.contains("function") &&
+           tool_call["function"].contains("name"))
+              ? tool_call["function"]["name"].get<std::string>()
+              : "unknown";
       const std::optional<ToolMessage> tool_msg =
           tool_manager.Execute(tool_call, &error);
       if (!tool_msg.has_value()) {
-        return "Error: " + error;
+        // Send the error back to the model so it can retry or adapt,
+        // instead of aborting the entire loop.
+        messages_.push_back(
+            ToolMessage(tool_id, tool_name, "Error: " + error).ToJson());
+      } else {
+        messages_.push_back(tool_msg->ToJson());
       }
-      messages_.push_back(tool_msg->ToJson());
     }
   }
 
+  restore_system();
   return "Error: Reached max tool-call rounds";
 }
 
@@ -481,5 +523,38 @@ void Agent::ShowTokenUsage() const {
     fmt::print(fg(fmt::terminal_color::bright_black),
                "[tokens: in={}, out={}]\n", usage.prompt_tokens,
                usage.completion_tokens);
+  }
+}
+
+void Agent::LoadSkills(const std::string& skills_path) {
+  if (!skill_manager_.LoadFromDirectory(skills_path)) {
+    return;
+  }
+
+  auto schema = skill_manager_.BuildSkillsSchema();
+  fmt::print(fg(fmt::color::green), "Loaded {} skills\n", schema.size());
+  for (const auto& skill : schema) {
+    fmt::print("  - {}: {}\n", skill["name"].get<std::string>(),
+               skill["description"].get<std::string>());
+  }
+
+  std::string skill_info = "\n\n## Available Skills\n";
+  for (const auto& skill : schema) {
+    skill_info += "- " + skill["name"].get<std::string>() + ": " +
+                  skill["description"].get<std::string>() + "\n";
+  }
+  skill_info +=
+      "\nThese skills provide specialized instructions that will be "
+      "automatically applied when relevant to your request.";
+
+  if (!messages_.empty() && messages_[0].is_object() &&
+      messages_[0].contains("role") && messages_[0]["role"] == "system") {
+    messages_[0]["content"] =
+        messages_[0]["content"].get<std::string>() + skill_info;
+  } else {
+    // No system message yet — insert one at the front.
+    messages_.insert(
+        messages_.begin(),
+        SystemMessage("You are a helpful assistant." + skill_info).ToJson());
   }
 }
