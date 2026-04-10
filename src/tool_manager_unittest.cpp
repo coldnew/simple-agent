@@ -28,11 +28,11 @@ std::filesystem::path TempPath(const std::string& filename) {
 
 }  // namespace
 
-struct ToolManagerSchemaTest : testing::Test {
+struct ToolsSchemaTest : testing::Test {
   ToolManager tool_manager;
 };
 
-TEST_F(ToolManagerSchemaTest, ContainsReadFileSchema) {
+TEST_F(ToolsSchemaTest, ContainsReadFileSchema) {
   const Json schema = tool_manager.BuildToolsSchema();
 
   ASSERT_TRUE(schema.is_array());
