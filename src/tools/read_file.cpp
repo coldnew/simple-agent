@@ -1,7 +1,7 @@
 #include <fstream>
 #include <sstream>
 
-#include "../tools.h"
+#include "tool_factory.h"
 
 namespace {
 
@@ -56,6 +56,6 @@ class ReadFileTool : public Tool {
 
 }  // namespace
 
-std::unique_ptr<Tool> MakeReadFileTool() {
+std::unique_ptr<Tool> CreateReadFileTool() {
   return std::make_unique<ReadFileTool>();
 }

@@ -3,8 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "message.cpp"
-#include "tool/read_file.cpp"
-#include "tools.cpp"
+#include "tool_manager.cpp"
 
 struct AgentTest : testing::Test {
   Agent agent{"http://localhost", "key", "model"};

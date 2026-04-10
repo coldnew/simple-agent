@@ -1,5 +1,5 @@
-#ifndef TOOLS_H_
-#define TOOLS_H_
+#ifndef TOOL_MANAGER_H_
+#define TOOL_MANAGER_H_
 
 #include <memory>
 #include <optional>
@@ -7,15 +7,7 @@
 #include <unordered_map>
 
 #include "message.h"
-
-class Tool {
- public:
-  std::string name;
-  std::string description;
-  Json parameters;
-
-  virtual std::string Execute(const Json& arguments, std::string* error) = 0;
-};
+#include "tools/tool_factory.h"
 
 class ToolManager {
  public:
@@ -35,4 +27,4 @@ class ToolManager {
   std::unordered_map<std::string, std::unique_ptr<Tool>> tools_;
 };
 
-#endif  // TOOLS_H_
+#endif  // TOOL_MANAGER_H_

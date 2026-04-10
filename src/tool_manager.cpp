@@ -1,9 +1,9 @@
-#include "tools.h"
+#include "tool_manager.h"
 
-std::unique_ptr<Tool> MakeReadFileTool();
+#include "tools/tool_factory.h"
 
 ToolManager::ToolManager() {
-  Register(MakeReadFileTool());
+  Register(CreateReadFileTool());
 }
 
 std::optional<ToolMessage> ToolManager::Execute(const Json& tool_call,
