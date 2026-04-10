@@ -1,5 +1,7 @@
 #include "tool_manager.h"
 
+#include <unordered_set>
+
 #include "tools/tool_factory.h"
 
 ToolManager::ToolManager() {
@@ -10,7 +12,7 @@ ToolManager::ToolManager() {
 }
 
 std::optional<ToolMessage> ToolManager::Execute(const Json& tool_call,
-                                                std::string* error) const {
+                                                std::string* error) {
   error->clear();
   if (!tool_call.is_object()) {
     *error = "Invalid tool_call payload: " + tool_call.dump();
@@ -75,15 +77,43 @@ Json ToolManager::BuildToolsSchema() const {
   return tools;
 }
 
+bool ToolManager::CheckSandbox(const std::string& tool_name,
+                               const Json& arguments,
+                               std::string* error) {
+  // Tools that operate on file paths.
+  static const std::unordered_set<std::string> kFileTools = {
+      "read_file", "write_file", "edit_file"};
+
+  if (kFileTools.find(tool_name) == kFileTools.end()) {
+    return true;
+  }
+
+  if (!arguments.contains("path") || !arguments["path"].is_string()) {
+    return true;  // Let the tool itself report the missing-path error.
+  }
+
+  const std::string path = arguments["path"].get<std::string>();
+  if (!sandbox_.CheckPathOrAsk(path)) {
+    *error = "Sandbox: operation on '" + path + "' denied by user";
+    return false;
+  }
+  return true;
+}
+
 std::optional<ToolMessage> ToolManager::Execute(const std::string& name,
                                                 const Json& arguments,
-                                                std::string* error) const {
+                                                std::string* error) {
   error->clear();
   auto it = tools_.find(name);
   if (it == tools_.end()) {
     *error = "Unknown tool: " + name;
     return std::nullopt;
   }
+
+  if (!CheckSandbox(name, arguments, error)) {
+    return std::nullopt;
+  }
+
   const std::string content = it->second->Execute(arguments, error);
   if (!error->empty()) {
     return std::nullopt;

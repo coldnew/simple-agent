@@ -7,6 +7,7 @@
 #include <string>
 
 #include "message.cpp"
+#include "sandbox.cpp"
 #include "tools/read_file.cpp"
 #include "tools/shell.cpp"
 #include "tools/write_file.cpp"
@@ -227,4 +228,61 @@ TEST_F(ExecuteToolCallTest, WriteFileCreatesFile) {
             std::string::npos);
 
   std::filesystem::remove(path);
+}
+
+struct SandboxToolTest : testing::Test {
+  ToolManager tool_manager;
+
+  void SetUp() override {
+    sandbox_dir_ = std::filesystem::temp_directory_path() / "sandbox_tool_test";
+    std::filesystem::create_directories(sandbox_dir_);
+    {
+      std::ofstream(sandbox_dir_ / "allowed.txt") << "ok";
+    }
+
+    tool_manager.sandbox() = Sandbox(sandbox_dir_.string());
+    // Auto-deny all out-of-sandbox requests.
+    tool_manager.sandbox().set_confirm_fn(
+        [](const std::string&, const std::string&) {
+          return Sandbox::Answer::kNo;
+        });
+  }
+
+  void TearDown() override { std::filesystem::remove_all(sandbox_dir_); }
+
+  std::filesystem::path sandbox_dir_;
+};
+
+TEST_F(SandboxToolTest, AllowsReadInsideSandbox) {
+  std::string error;
+  const Json args =
+      Json::object({{"path", (sandbox_dir_ / "allowed.txt").string()}});
+  const auto result = tool_manager.Execute("read_file", args, &error);
+  ASSERT_TRUE(result.has_value()) << error;
+  EXPECT_EQ(result->Text(), "ok");
+}
+
+TEST_F(SandboxToolTest, DeniesReadOutsideSandbox) {
+  std::string error;
+  const Json args = Json::object({{"path", "/etc/hostname"}});
+  const auto result = tool_manager.Execute("read_file", args, &error);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_NE(error.find("Sandbox"), std::string::npos);
+}
+
+TEST_F(SandboxToolTest, DeniesWriteOutsideSandbox) {
+  std::string error;
+  const Json args =
+      Json::object({{"path", "/tmp/sandbox_evil.txt"}, {"content", "bad"}});
+  const auto result = tool_manager.Execute("write_file", args, &error);
+  EXPECT_FALSE(result.has_value());
+  EXPECT_NE(error.find("Sandbox"), std::string::npos);
+}
+
+TEST_F(SandboxToolTest, ShellToolSkipsSandboxCheck) {
+  std::string error;
+  const Json args = Json::object({{"command", "echo hello"}});
+  const auto result = tool_manager.Execute("shell", args, &error);
+  ASSERT_TRUE(result.has_value()) << error;
+  EXPECT_EQ(result->Text(), "hello");
 }
