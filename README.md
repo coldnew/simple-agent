@@ -99,4 +99,4 @@ cmake --build build/ --target format
 - [Learn Claude Code](https://learn.shareai.run/en/)
 - [Build your own agent in Rust](https://odysa.github.io/mini-claw-code/en/)
 - [How to Build Your Own AI Coding Agent from Scratch](https://www.morphllm.com/build-your-own-coding-agent)
-
+- [What I learned building an opinionated and minimal coding agent](https://mariozechner.at/posts/2025-11-30-pi-coding-agent/)
