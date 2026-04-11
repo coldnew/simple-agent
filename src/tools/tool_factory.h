@@ -13,6 +13,7 @@ class Tool {
   std::string description;
   Json parameters;
 
+  virtual ~Tool() = default;
   virtual std::string Execute(const Json& arguments, std::string* error) = 0;
 };
 
