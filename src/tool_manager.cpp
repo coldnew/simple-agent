@@ -86,6 +86,19 @@ bool ToolManager::CheckPermission(const std::string& tool_name,
   static const std::unordered_set<std::string> kFileTools = {
       "read_file", "write_file", "edit_file"};
 
+  // Shell: use Permission class for command checking.
+  if (tool_name == "shell") {
+    if (!arguments.contains("command") || !arguments["command"].is_string()) {
+      return true;  // Let the tool itself report the error.
+    }
+    const std::string cmd = arguments["command"].get<std::string>();
+    if (!permission_.CheckShellCommand(cmd)) {
+      *error = "Shell: permission denied";
+      return false;
+    }
+    return true;
+  }
+
   if (kFileTools.find(tool_name) == kFileTools.end()) {
     return true;
   }

@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <string>
+#include <unordered_set>
 
 // Permission restricts file operations to a given directory.
 // Paths outside the allowed directory trigger a user confirmation prompt.
@@ -23,6 +24,10 @@ class Permission {
   // If the user answers "always", future out-of-allowed paths are auto-allowed.
   bool CheckPathOrAsk(const std::string& path);
 
+  // Shell command permission check.
+  // Returns true if the command is allowed or the user approved it.
+  bool CheckShellCommand(const std::string& command);
+
   const std::string& allowed_dir() const { return allowed_dir_; }
 
   // Override the confirmation callback (for testing).
@@ -35,6 +40,9 @@ class Permission {
   std::string allowed_dir_;
   bool allow_all_ = false;
   ConfirmFn confirm_fn_;
+
+  static const std::unordered_set<std::string> kAllowedShellCommands;
+  static const std::unordered_set<std::string> kBlockedShellPatterns;
 };
 
 #endif  // PERMISSION_H_

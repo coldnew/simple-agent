@@ -4,6 +4,8 @@
 
 #include <filesystem>
 #include <iostream>
+#include <sstream>
+#include <unordered_set>
 
 namespace {
 
@@ -46,7 +48,27 @@ Permission::Answer DefaultConfirm(const std::string& path,
   return Permission::Answer::kNo;
 }
 
+// Allowed shell commands (read-only, safe operations).
+const std::unordered_set<std::string> kAllowedShellCommands = {
+    "ls",     "cat",  "git",  "grep", "find", "echo",  "pwd",
+    "cd",     "tree", "head", "tail", "wc",   "which", "whoami",
+    "ls -la", "pwd",  "date", "id",   "uname"};
+
+// Blocked shell patterns (dangerous operations).
+const std::unordered_set<std::string> kBlockedShellPatterns = {
+    "rm -rf", "sudo",    "chmod 777", "|",       ";",       "&&",   "||",
+    "`",      "$(",      "curl",      "wget",    "nc",      "ncat", "python",
+    "node",   "ruby",    "perl",      "bash -i", "/bin/sh", "exec", "eval",
+    "sh -c",  "bash -c", "kill",      "killall", "pkill",   "dd",   "mkfs",
+    "mount",  "umount",  "reboot",    "shutdown"};
+
 }  // namespace
+
+// Static member initialization.
+const std::unordered_set<std::string> Permission::kAllowedShellCommands =
+    kAllowedShellCommands;
+const std::unordered_set<std::string> Permission::kBlockedShellPatterns =
+    kBlockedShellPatterns;
 
 Permission::Permission(const std::string& allowed_dir, bool skip_permissions)
     : allowed_dir_(allowed_dir.empty() ? std::filesystem::canonical(
@@ -80,6 +102,39 @@ bool Permission::CheckPathOrAsk(const std::string& path) {
   }
 
   const Answer answer = confirm_fn_(path, allowed_dir_);
+  if (answer == Answer::kAlways) {
+    allow_all_ = true;
+    return true;
+  }
+  return answer == Answer::kYes;
+}
+
+bool Permission::CheckShellCommand(const std::string& command) {
+  if (allow_all_) {
+    return true;
+  }
+
+  // Check blocked patterns first.
+  for (const auto& pattern : kBlockedShellPatterns) {
+    if (command.find(pattern) != std::string::npos) {
+      std::cerr << "[Permission] Blocked dangerous pattern: " << pattern
+                << std::endl;
+      return false;
+    }
+  }
+
+  // Extract base command (first word).
+  std::istringstream iss(command);
+  std::string cmd_base;
+  iss >> cmd_base;
+
+  // Check allowlist.
+  if (kAllowedShellCommands.find(cmd_base) != kAllowedShellCommands.end()) {
+    return true;
+  }
+
+  // Not in allowlist - ask user for permission.
+  const Answer answer = confirm_fn_("shell: " + command, allowed_dir_);
   if (answer == Answer::kAlways) {
     allow_all_ = true;
     return true;

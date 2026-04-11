@@ -281,6 +281,9 @@ TEST_F(PermissionToolTest, DeniesWriteOutsidePermission) {
 }
 
 TEST_F(PermissionToolTest, ShellToolSkipsPermissionCheck) {
+  // This test verifies that shell commands bypass permission checks
+  // when skip_permissions=true is used.
+  ToolManager tool_manager{true};  // skip_permissions=true
   std::string error;
   const Json args = Json::object({{"command", "echo hello"}});
   const auto result = tool_manager.Execute("shell", args, &error);
