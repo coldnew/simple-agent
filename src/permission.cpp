@@ -48,12 +48,12 @@ Permission::Answer DefaultConfirm(const std::string& path,
 
 }  // namespace
 
-Permission::Permission(const std::string& allowed_dir)
-    : allowed_dir_(Canonicalize(allowed_dir)), confirm_fn_(DefaultConfirm) {}
-
-Permission::Permission()
-    : allowed_dir_(
-          std::filesystem::canonical(std::filesystem::current_path()).string()),
+Permission::Permission(const std::string& allowed_dir, bool skip_permissions)
+    : allowed_dir_(allowed_dir.empty() ? std::filesystem::canonical(
+                                             std::filesystem::current_path())
+                                             .string()
+                                       : Canonicalize(allowed_dir)),
+      allow_all_(skip_permissions),
       confirm_fn_(DefaultConfirm) {}
 
 bool Permission::IsPathAllowed(const std::string& path) const {

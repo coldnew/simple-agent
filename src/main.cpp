@@ -8,22 +8,47 @@
 
 int main(int argc, char* argv[]) {
   bool verbose = false;
+  bool skip_permissions = false;
+
+  static struct option long_options[] = {
+      {"dangerously-skip-permissions", no_argument, nullptr, 's'},
+      {"skip", no_argument, nullptr, 's'},
+      {"verbose", no_argument, nullptr, 'v'},
+      {"help", no_argument, nullptr, 'h'},
+      {nullptr, 0, nullptr, 0}};
 
   int opt;
-  while ((opt = getopt(argc, argv, "vh")) != -1) {
+  int option_index = 0;
+  while ((opt = getopt_long(argc, argv, "svh", long_options, &option_index)) !=
+         -1) {
     switch (opt) {
       case 'v':
         verbose = true;
         break;
+      case 's':
+        skip_permissions = true;
+        break;
       case 'h':
-        std::cout << "Usage: " << argv[0] << " [-v] [-h]\n"
-                  << "  -v, --verbose    Print request/response dumps\n"
-                  << "  -h, --help      Show this help message\n";
+        std::cout
+            << "Usage: " << argv[0]
+            << " [-v] [-s] [-h] [--dangerously-skip-permissions] [--skip]\n"
+            << "  -v, --verbose                Print request/response dumps\n"
+            << "  -s, --skip                  Skip permission check "
+               "(DANGEROUS)\n"
+            << "  -h, --help                   Show this help message\n"
+            << "  --dangerously-skip-permissions  Skip permission check "
+               "(DANGEROUS)\n"
+            << "  --skip                         Same as -s\n";
         return 0;
       default:
-        std::cerr << "Usage: " << argv[0] << " [-v] [-h]\n";
+        std::cerr << "Usage: " << argv[0] << " [-v] [-s] [-h]\n";
         return 1;
     }
+  }
+
+  if (skip_permissions) {
+    std::cout << "WARNING: Permission check skipped due to "
+                 "--dangerously-skip-permissions flag\n";
   }
 
   const char* api_url = std::getenv("API_URL");
@@ -44,7 +69,7 @@ int main(int argc, char* argv[]) {
 
   std::string system_prompt = R"(You are a helpful assistant who named AI.)";
 
-  Agent agent(url, key, model_name, system_prompt, verbose);
+  Agent agent(url, key, model_name, system_prompt, verbose, skip_permissions);
 
   std::cout << "Simple Agent - Enter your query (or 'quit' to exit):"
             << std::endl;

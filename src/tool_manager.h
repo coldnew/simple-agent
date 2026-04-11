@@ -12,7 +12,7 @@
 
 class ToolManager {
  public:
-  ToolManager();
+  ToolManager(bool skip_permissions = false);
 
   Json BuildToolsSchema() const;
   std::optional<ToolMessage> Execute(const Json& tool_call, std::string* error);

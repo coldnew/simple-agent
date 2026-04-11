@@ -11,10 +11,9 @@ class Permission {
   enum class Answer { kNo, kYes, kAlways };
 
   // |allowed_dir| is canonicalized at construction time.
-  explicit Permission(const std::string& allowed_dir);
-
-  // Default: uses current working directory.
-  Permission();
+  // If empty, uses current working directory.
+  explicit Permission(const std::string& allowed_dir = "",
+                      bool skip_permissions = false);
 
   // Returns true if |path| resolves to somewhere under |allowed_dir_|.
   bool IsPathAllowed(const std::string& path) const;

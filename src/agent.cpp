@@ -10,8 +10,13 @@ Agent::Agent(const std::string& api_url,
              const std::string& api_key,
              const std::string& model,
              const std::string& system_prompt,
-             bool verbose)
-    : api_url_(api_url), api_key_(api_key), model_(model), verbose_(verbose) {
+             bool verbose,
+             bool skip_permissions)
+    : api_url_(api_url),
+      api_key_(api_key),
+      model_(model),
+      verbose_(verbose),
+      skip_permissions_(skip_permissions) {
   if (!system_prompt.empty()) {
     messages_.push_back(SystemMessage(system_prompt).ToJson());
   }
@@ -105,7 +110,7 @@ std::string Agent::Run(const std::string& query) {
   // A single user turn may include multiple model requests when tool calls
   // are returned. Keep the chain bounded to avoid infinite loops.
   const int kMaxToolRounds = 8;
-  ToolManager tool_manager;
+  ToolManager tool_manager(skip_permissions_);
   for (int round = 0; round < kMaxToolRounds; ++round) {
     Json payload;
     payload["model"] = model_;

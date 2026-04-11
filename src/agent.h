@@ -16,7 +16,8 @@ class Agent {
         const std::string& api_key,
         const std::string& model,
         const std::string& system_prompt = "",
-        bool verbose = false);
+        bool verbose = false,
+        bool skip_permissions = false);
   ~Agent();
 
   std::string Run(const std::string& query);
@@ -38,6 +39,7 @@ class Agent {
   std::string model_;
   std::vector<Json> messages_;
   bool verbose_;
+  bool skip_permissions_;
 };
 
 #endif  // AGENT_H_

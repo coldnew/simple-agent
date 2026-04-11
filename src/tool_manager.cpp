@@ -1,10 +1,12 @@
 #include "tool_manager.h"
 
+#include <filesystem>
 #include <unordered_set>
 
 #include "tools/tool_factory.h"
 
-ToolManager::ToolManager() {
+ToolManager::ToolManager(bool skip_permissions)
+    : permission_(std::filesystem::current_path().string(), skip_permissions) {
   Register(CreateReadFileTool());
   Register(CreateWriteFileTool());
   Register(CreateEditFileTool());
