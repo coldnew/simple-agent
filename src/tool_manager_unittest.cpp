@@ -95,7 +95,7 @@ TEST_F(ToolsSchemaTest, ContainsWriteFileSchema) {
 }
 
 struct ExecuteToolCallTest : testing::Test {
-  ToolManager tool_manager;
+  ToolManager tool_manager{true};  // skip_permissions to avoid path validation
 };
 
 TEST_F(ExecuteToolCallTest, RejectsNonObjectPayload) {
