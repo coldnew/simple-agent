@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "message.cpp"
+#include "permission.cpp"
 #include "tool_manager.cpp"
 
 struct AgentTest : testing::Test {
